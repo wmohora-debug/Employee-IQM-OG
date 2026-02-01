@@ -1,65 +1,45 @@
-import Image from "next/image";
+import { IQMLogoFull } from "./components/Logo";
+import { LoginForm } from "./components/LoginForm";
 
 export default function Home() {
   return (
-    <div className="flex min-h-screen items-center justify-center bg-zinc-50 font-sans dark:bg-black">
-      <main className="flex min-h-screen w-full max-w-3xl flex-col items-center justify-between py-32 px-16 bg-white dark:bg-black sm:items-start">
-        <Image
-          className="dark:invert"
-          src="/next.svg"
-          alt="Next.js logo"
-          width={100}
-          height={20}
-          priority
-        />
-        <div className="flex flex-col items-center gap-6 text-center sm:items-start sm:text-left">
-          <h1 className="max-w-xs text-3xl font-semibold leading-10 tracking-tight text-black dark:text-zinc-50">
-            To get started, edit the page.tsx file.
+    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
+      {/* Background Subtle Gradient */}
+      <div className="absolute inset-0 overflow-hidden pointer-events-none">
+        <div className="absolute -top-[50%] -left-[20%] w-[100%] h-[100%] rounded-full bg-indigo-100/40 blur-[100px]"></div>
+        <div className="absolute top-[50%] right-[0%] w-[80%] h-[80%] rounded-full bg-purple-100/40 blur-[100px]"></div>
+      </div>
+
+      <div className="relative z-10 w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+
+        {/* Left Side: Branding & Info */}
+        <div className="text-center lg:text-left space-y-6">
+          <div className="flex items-center justify-center lg:justify-start gap-4 mb-4">
+            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-lg transform hover:scale-105 transition-transform duration-300 cursor-default">
+              <IQMLogoFull className="w-10 h-10 text-iqm-primary" />
+            </div>
+          </div>
+          <h1 className="text-5xl lg:text-7xl font-bold text-gray-900 tracking-tight leading-tight">
+            Manage Tasks <br />
+            <span className="text-iqm-primary">Intelligently.</span>
           </h1>
-          <p className="max-w-md text-lg leading-8 text-zinc-600 dark:text-zinc-400">
-            Looking for a starting point or more instructions? Head over to{" "}
-            <a
-              href="https://vercel.com/templates?framework=next.js&utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Templates
-            </a>{" "}
-            or the{" "}
-            <a
-              href="https://nextjs.org/learn?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-              className="font-medium text-zinc-950 dark:text-zinc-50"
-            >
-              Learning
-            </a>{" "}
-            center.
+          <p className="text-gray-500 text-lg max-w-md mx-auto lg:mx-0 leading-relaxed">
+            The centralized Employee Task Management System (IQM) for tracking performance, assigning modules, and verifying skills.
           </p>
+
+
         </div>
-        <div className="flex flex-col gap-4 text-base font-medium sm:flex-row">
-          <a
-            className="flex h-12 w-full items-center justify-center gap-2 rounded-full bg-foreground px-5 text-background transition-colors hover:bg-[#383838] dark:hover:bg-[#ccc] md:w-[158px]"
-            href="https://vercel.com/new?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            <Image
-              className="dark:invert"
-              src="/vercel.svg"
-              alt="Vercel logomark"
-              width={16}
-              height={16}
-            />
-            Deploy Now
-          </a>
-          <a
-            className="flex h-12 w-full items-center justify-center rounded-full border border-solid border-black/[.08] px-5 transition-colors hover:border-transparent hover:bg-black/[.04] dark:border-white/[.145] dark:hover:bg-[#1a1a1a] md:w-[158px]"
-            href="https://nextjs.org/docs?utm_source=create-next-app&utm_medium=appdir-template-tw&utm_campaign=create-next-app"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Documentation
-          </a>
+
+        {/* Right Side: Login Form */}
+        <div className="flex justify-center lg:justify-end w-full">
+          <LoginForm />
         </div>
-      </main>
+
+      </div>
+
+      <footer className="mt-16 text-gray-400 text-sm">
+        © 2026 IQM Systems. All rights reserved.
+      </footer>
     </div>
   );
 }

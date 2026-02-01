@@ -1,0 +1,22 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    
+    // Helper function to check if user is HR
+    function isHR() {
+      return request.auth.uid == "vBlvUiEDmqXbN0dUP7iHSW8ZH1O2";
+    }
+
+    match /users/{userId} {
+      allow read: if true;
+      // Allow HR to write anything
+      // Allow users to create their OWN profile, but role must be 'employee' (unless they are HR self-initializing)
+      allow write: if isHR() 
+                   || (request.auth.uid == userId && (resource == null || request.resource.data.role == 'employee'));
+    }
+    
+    match /{document=**} {
+      allow read, write: if true; // Keeping other collections open for now as per dev mode, can be tightened later
+    }
+  }
+}

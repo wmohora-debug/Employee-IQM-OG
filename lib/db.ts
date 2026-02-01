@@ -1,0 +1,530 @@
+import { db, storage } from "./firebase";
+import {
+    collection,
+    doc,
+    getDoc,
+    getDocs,
+    setDoc,
+    addDoc,
+    updateDoc,
+    deleteDoc,
+    query,
+    where,
+    orderBy,
+    onSnapshot,
+    increment,
+    serverTimestamp,
+    Timestamp
+} from "firebase/firestore";
+import { ref } from "firebase/storage";
+
+// --- Types ---
+export type UserRole = 'lead' | 'employee' | 'hr';
+
+export interface User {
+    uid: string;
+    email: string;
+    name: string;
+    role: UserRole;
+    avatarUrl?: string;
+    points: number;
+    password?: string;
+    svmScore?: number;
+    ratingCount?: number;
+}
+
+export interface TaskModule {
+    id: string; // Unique ID for the module (or index-based fallback)
+    title: string;
+    description?: string;
+    assignedTo: string;
+    status: 'pending' | 'submitted' | 'verified' | 'rejected';
+
+    // Submission Data
+    submissionNote?: string;
+    submittedAt?: any;
+
+    // Verification Data
+    verifiedBy?: string;
+    verifiedAt?: any;
+    rejectionReason?: string;
+}
+
+export interface Task {
+    id?: string;
+    title: string;
+    description: string;
+    assignedTo?: string; // Legacy/Fallback
+    assignedBy: string;
+    status: 'pending' | 'in-progress' | 'submitted' | 'verified'; // Overall status
+    priority: 'low' | 'medium' | 'high';
+    dueDate: Date | Timestamp;
+    assigneeIds?: string[];
+    modules?: TaskModule[];
+
+    // Legacy fields (kept optional for type compatibility, but moving to module-level)
+    submittedBy?: string;
+    submittedAt?: any;
+    submissionNote?: string;
+    verifiedBy?: string;
+    verifiedAt?: any;
+    rejectionReason?: string;
+
+    statusHistory?: Array<{
+        status: string;
+        by: string;
+        at: any;
+        details?: string;
+    }>;
+
+    submissionUrl?: string;
+    rating?: number;
+    feedback?: string;
+    createdAt?: any;
+    completedAt?: any;
+    completedBy?: string;
+}
+
+// ... (Helper Functions stay the same until submitTask) ...
+
+// --- Task Management Functions ---
+
+export const createTask = async (taskData: Task) => {
+    // Basic validation
+    if (!taskData.title || !taskData.assignedBy) {
+        throw new Error("Missing required task fields");
+    }
+
+    // Ensure status is pending initially
+    const task: Task = {
+        ...taskData,
+        status: 'pending',
+        createdAt: serverTimestamp(),
+        // Ensure assigneeIds is populated from modules if not explicitly provided
+        assigneeIds: taskData.assigneeIds || (taskData.modules ? Array.from(new Set(taskData.modules.map(m => m.assignedTo).filter(Boolean))) : [taskData.assignedTo!].filter(Boolean))
+    };
+
+    // If using modules, ensure they have IDs
+    if (task.modules) {
+        task.modules = task.modules.map((m, idx) => ({
+            ...m,
+            id: m.id || `module_${Date.now()}_${idx}`,
+            status: 'pending' // Force pending on creation
+        }));
+    }
+
+    await addDoc(collection(db, "tasks"), task);
+};
+
+export const deleteTask = async (taskId: string) => {
+    await deleteDoc(doc(db, "tasks", taskId));
+};
+
+export const subscribeToTasks = (userId: string, role: string, callback: (tasks: Task[]) => void, completedOnly = false) => {
+    let q;
+    const tasksRef = collection(db, "tasks");
+
+    if (role === 'lead') {
+        if (completedOnly) {
+            q = query(tasksRef, where("status", "==", "verified"), orderBy("createdAt", "desc"));
+        } else {
+            q = query(tasksRef, where("status", "in", ["pending", "in-progress", "submitted"]), orderBy("createdAt", "desc"));
+        }
+    } else {
+        if (completedOnly) {
+            q = query(tasksRef, where("assigneeIds", "array-contains", userId), where("status", "==", "verified"), orderBy("createdAt", "desc"));
+        } else {
+            q = query(tasksRef, where("assigneeIds", "array-contains", userId), where("status", "in", ["pending", "in-progress", "submitted"]), orderBy("createdAt", "desc"));
+        }
+    }
+
+    return onSnapshot(q, (snapshot) => {
+        const tasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task));
+        callback(tasks);
+    }, (error) => {
+        console.error("Error subscribing to tasks:", error);
+    });
+};
+
+export const getEmployees = async () => {
+    const q = query(collection(db, "users"), where("role", "==", "employee"));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => doc.data() as User);
+};
+
+// --- Legacy Task Functions ---
+
+export const submitTask = async (taskId: string, userId: string, note: string) => {
+    const ref = doc(db, "tasks", taskId);
+    await updateDoc(ref, {
+        status: 'submitted',
+        submissionNote: note,
+        submittedBy: userId,
+        submittedAt: serverTimestamp()
+    });
+};
+
+export const verifyTask = async (taskId: string, verifierId: string) => {
+    const ref = doc(db, "tasks", taskId);
+    await updateDoc(ref, {
+        status: 'verified',
+        verifiedBy: verifierId,
+        verifiedAt: serverTimestamp(),
+        completedAt: serverTimestamp()
+    });
+};
+
+export const rejectTask = async (taskId: string, leadId: string, reason: string) => {
+    const ref = doc(db, "tasks", taskId);
+    await updateDoc(ref, {
+        status: 'in-progress',
+        rejectionReason: reason
+    });
+};
+
+// --- New Module-Based Verification Workflow Functions ---
+
+export const submitTaskModule = async (taskId: string, moduleId: string, userId: string, submissionNote: string) => {
+    const ref = doc(db, "tasks", taskId);
+    const taskSnap = await getDoc(ref);
+    if (!taskSnap.exists()) throw new Error("Task not found");
+    const task = taskSnap.data() as Task;
+
+    const modules = task.modules || [];
+    const moduleIndex = modules.findIndex(m => m.id === moduleId);
+
+    if (moduleIndex === -1) throw new Error("Module not found.");
+
+    const module = modules[moduleIndex];
+    if (module.assignedTo !== userId) throw new Error("Unauthorized: You are not assigned to this module.");
+
+    if (!submissionNote || submissionNote.trim().length < 20) {
+        throw new Error("Proof of work is required (minimum 20 characters).");
+    }
+
+    // Update the module
+    const updatedModule: TaskModule = {
+        ...module,
+        status: 'submitted',
+        submissionNote: submissionNote.trim(),
+        submittedAt: new Date(),
+        rejectionReason: '' // Clear rejection
+    };
+
+    const updatedModules = [...modules];
+    updatedModules[moduleIndex] = updatedModule;
+
+    // Log history
+    const historyItem = {
+        status: `module_submitted:${module.title}`,
+        by: userId,
+        at: new Date()
+    };
+
+    await updateDoc(ref, {
+        modules: updatedModules,
+        status: 'in-progress', // Ensure task is active
+        statusHistory: [...(task.statusHistory || []), historyItem]
+    });
+
+    await addDoc(collection(db, "activity_logs"), {
+        userId,
+        action: "module_submitted",
+        taskId,
+        moduleId,
+        timestamp: serverTimestamp()
+    });
+};
+
+export const verifyTaskModule = async (taskId: string, moduleId: string, leadId: string) => {
+    const ref = doc(db, "tasks", taskId);
+    const taskSnap = await getDoc(ref);
+    if (!taskSnap.exists()) throw new Error("Task not found");
+    const task = taskSnap.data() as Task;
+
+    const modules = task.modules || [];
+    const moduleIndex = modules.findIndex(m => m.id === moduleId);
+
+    if (moduleIndex === -1) throw new Error("Module not found.");
+    const module = modules[moduleIndex];
+
+    if (module.status !== 'submitted') throw new Error("Module is not in submitted state.");
+
+    // Update Module
+    const updatedModule: TaskModule = {
+        ...module,
+        status: 'verified',
+        verifiedBy: leadId,
+        verifiedAt: new Date()
+    };
+
+    const updatedModules = [...modules];
+    updatedModules[moduleIndex] = updatedModule;
+
+    // Check OVERALL Task Completion
+    // Task is verified ONLY if ALL modules are verified
+    const allVerified = updatedModules.every(m => m.status === 'verified');
+    const newOverallStatus = allVerified ? 'verified' : 'in-progress';
+
+    const historyItem = {
+        status: `module_verified:${module.title}`,
+        by: leadId,
+        at: new Date()
+    };
+
+    const updateData: any = {
+        modules: updatedModules,
+        status: newOverallStatus,
+        statusHistory: [...(task.statusHistory || []), historyItem]
+    };
+
+    if (allVerified) {
+        updateData.completedAt = serverTimestamp();
+        updateData.verifiedBy = leadId; // Overall verification
+        updateData.verifiedAt = serverTimestamp();
+    }
+
+    await updateDoc(ref, updateData);
+
+    // Award Points to Employee
+    if (module.assignedTo) {
+        const pointsEarned = 50;
+        const userRef = doc(db, "users", module.assignedTo);
+        await updateDoc(userRef, { points: increment(pointsEarned) });
+
+        await addDoc(collection(db, "activity_logs"), {
+            userId: module.assignedTo,
+            action: "module_verified",
+            pointsChange: pointsEarned,
+            taskId,
+            moduleId,
+            timestamp: serverTimestamp()
+        });
+    }
+};
+
+export const rejectTaskModule = async (taskId: string, moduleId: string, leadId: string, reason: string) => {
+    const ref = doc(db, "tasks", taskId);
+    const taskSnap = await getDoc(ref);
+    if (!taskSnap.exists()) throw new Error("Task not found");
+    const task = taskSnap.data() as Task;
+
+    const modules = task.modules || [];
+    const moduleIndex = modules.findIndex(m => m.id === moduleId);
+
+    if (moduleIndex === -1) throw new Error("Module not found.");
+    const module = modules[moduleIndex];
+
+    const updatedModule: TaskModule = {
+        ...module,
+        status: 'rejected', // Or 'pending' if we want to reset completely. 'rejected' allows showing the red badge.
+        rejectionReason: reason,
+        // We can optionally reset submittedAt/Note if we want them to start fresh, 
+        // OR keep it so they can see what they wrote. 
+        // Let's keep note but status rejected allows resubmission.
+    };
+
+    const updatedModules = [...modules];
+    updatedModules[moduleIndex] = updatedModule;
+
+    const historyItem = {
+        status: `module_rejected:${module.title}`,
+        by: leadId,
+        at: new Date(),
+        details: reason
+    };
+
+    await updateDoc(ref, {
+        modules: updatedModules,
+        // If a module is rejected, the whole task definitely isn't verified.
+        status: 'in-progress',
+        statusHistory: [...(task.statusHistory || []), historyItem]
+    });
+
+    await addDoc(collection(db, "activity_logs"), {
+        userId: module.assignedTo,
+        action: "module_rejected",
+        taskId,
+        moduleId,
+        details: reason,
+        timestamp: serverTimestamp()
+    });
+};
+
+// --- Storage ---
+// Upload capability removed per new requirements.
+
+// --- Users ---
+export const subscribeToUsers = (callback: (users: User[]) => void) => {
+    const q = query(collection(db, "users"));
+    return onSnapshot(q, (snapshot) => {
+        const users = snapshot.docs.map(doc => doc.data() as User);
+        callback(users);
+    }, (error) => {
+        console.error("Error subscribing to users:", error);
+    });
+};
+
+// --- Leaderboard & Stats ---
+
+export const subscribeToLeaderboard = (callback: (users: User[]) => void) => {
+    const q = query(collection(db, "users"), where("role", "==", "employee"));
+    return onSnapshot(q, (snapshot) => {
+        const users = snapshot.docs.map(doc => doc.data() as User);
+        // Centralized Sort: SVM Score DESC, then Points DESC
+        users.sort((a, b) => {
+            const scoreDiff = (b.svmScore || 0) - (a.svmScore || 0);
+            if (scoreDiff !== 0) return scoreDiff;
+            return (b.points || 0) - (a.points || 0);
+        });
+        callback(users);
+    }, (error) => {
+        console.error("Error subscribing to leaderboard:", error);
+    });
+};
+
+// Helper: Subscribe to Stats (Lead)
+export const subscribeToLeadStats = (leadId: string, callback: (stats: any) => void) => {
+    const tasksQuery = query(collection(db, "tasks"), where("assignedBy", "==", leadId));
+
+    // We listen to tasks in real-time
+    const unsubTasks = onSnapshot(tasksQuery, (taskSnap) => {
+        const tasks = taskSnap.docs.map(d => d.data());
+        const completed = tasks.filter((t: any) => t.status === 'verified').length;
+        // Pending = Active (Pending + In-Progress + Submitted)
+        const pending = tasks.filter((t: any) => t.status !== 'verified').length;
+
+        // Fetch users count (can be one-off or subscribed, one-off is usually fine for stats unless rapid hiring)
+        getDocs(collection(db, "users")).then((userSnap) => {
+            const users = userSnap.docs.map(d => d.data());
+            const totalEmployees = users.filter((u: any) => u.role === 'employee').length;
+            const totalLeads = users.filter((u: any) => u.role === 'lead').length;
+
+            callback({
+                pendingTasks: pending,
+                completedTasks: completed,
+                totalEmployees,
+                totalLeads
+            });
+        }).catch(err => console.error("Error fetching user stats:", err));
+    }, (error) => {
+        console.error("Error subscribing to lead stats:", error);
+    });
+    return unsubTasks;
+};
+
+// Helper: Subscribe to Stats (Employee)
+export const subscribeToEmployeeStats = (userId: string, callback: (stats: any) => void) => {
+    // Also use array-contains for stats to ensure all assigned tasks are counted
+    const q = query(collection(db, "tasks"), where("assigneeIds", "array-contains", userId));
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+        const tasks = snapshot.docs.map(d => d.data());
+        const assigned = tasks.length;
+        const completed = tasks.filter((t: any) => t.status === 'verified').length;
+        const pending = tasks.filter((t: any) => t.status === 'pending' || t.status === 'in-progress' || t.status === 'submitted').length;
+
+        callback({
+            assignedTasks: assigned,
+            pendingReviews: pending,
+            completedTasks: completed
+        });
+    }, (error) => {
+        console.error("Error subscribing to employee stats:", error);
+    });
+
+    return unsubscribe;
+};
+
+// --- Skill Validation Matrix (SVM) ---
+
+export interface UserSkill {
+    id?: string;
+    userId: string;
+    skillId: string;
+    skillName: string;
+    proficiency: 1 | 2 | 3 | 4 | 5;
+    validated: boolean;
+    validatedBy?: string;
+}
+
+export const subscribeToSkills = (callback: (skills: UserSkill[]) => void) => {
+    const q = query(collection(db, "user_skills"));
+    return onSnapshot(q, (snapshot) => {
+        const skills = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as UserSkill));
+        callback(skills);
+    }, (error) => {
+        console.error("Error subscribing to skills:", error);
+    });
+};
+
+export const addSkillRequest = async (userId: string, skillName: string, proficiency: UserSkill['proficiency']) => {
+    await addDoc(collection(db, "user_skills"), {
+        userId,
+        skillName,
+        skillId: "custom_" + Date.now(),
+        proficiency,
+        validated: false,
+        createdAt: serverTimestamp()
+    });
+};
+
+export const validateSkill = async (skillDocId: string, validatorId: string) => {
+    const ref = doc(db, "user_skills", skillDocId);
+    await updateDoc(ref, {
+        validated: true,
+        validatedBy: validatorId,
+        validatedAt: serverTimestamp()
+    });
+};
+
+// --- SVM Ratings ---
+
+export const submitSVMRating = async (leadId: string, employeeId: string, ratings: number[]) => {
+    // ratings is array of 6 numbers
+    const avg = ratings.reduce((a, b) => a + b, 0) / ratings.length;
+    const ratingDocId = `${employeeId}_${leadId}`;
+
+    // Save Rating
+    await setDoc(doc(db, "svm_ratings", ratingDocId), {
+        leadId,
+        employeeId,
+        ratings,
+        average: avg,
+        updatedAt: serverTimestamp()
+    });
+
+    // Aggregate
+    const q = query(collection(db, "svm_ratings"), where("employeeId", "==", employeeId));
+    const snapshot = await getDocs(q);
+    const allRatings = snapshot.docs.map(d => d.data().average);
+    const finalAvg = allRatings.reduce((a, b) => a + b, 0) / allRatings.length;
+
+    // Update User
+    await updateDoc(doc(db, "users", employeeId), {
+        svmScore: parseFloat(finalAvg.toFixed(2)),
+        ratingCount: allRatings.length
+    });
+};
+
+// --- Admin / Sync ---
+
+export const syncUser = async (uid: string, name: string, role: UserRole) => {
+    const ref = doc(db, "users", uid);
+    const snap = await getDoc(ref);
+
+    if (snap.exists()) {
+        const existing = snap.data();
+        if (existing.role && existing.role !== role) {
+            throw new Error(`This user is already assigned as ${existing.role}. Role override is not allowed.`);
+        }
+    }
+
+    await setDoc(ref, {
+        uid,
+        name,
+        role,
+        status: "active",
+        syncedAt: serverTimestamp()
+    }, { merge: true });
+};
