@@ -1,45 +1,40 @@
 import { IQMLogoFull } from "./components/Logo";
 import { LoginForm } from "./components/LoginForm";
+import { PremiumBackground } from "./components/PremiumBackground";
 
 export default function Home() {
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col items-center justify-center p-4">
-      {/* Background Subtle Gradient */}
-      <div className="absolute inset-0 overflow-hidden pointer-events-none">
-        <div className="absolute -top-[50%] -left-[20%] w-[100%] h-[100%] rounded-full bg-indigo-100/40 blur-[100px]"></div>
-        <div className="absolute top-[50%] right-[0%] w-[80%] h-[80%] rounded-full bg-purple-100/40 blur-[100px]"></div>
-      </div>
+    <div className="relative min-h-screen w-full flex flex-col items-center justify-center overflow-hidden">
 
-      <div className="relative z-10 w-full max-w-6xl grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
+      {/* 1. Animated Background Layer */}
+      <PremiumBackground />
 
-        {/* Left Side: Branding & Info */}
-        <div className="text-center lg:text-left space-y-6">
-          <div className="flex items-center justify-center lg:justify-start gap-4 mb-4">
-            <div className="w-16 h-16 bg-white rounded-2xl flex items-center justify-center shadow-lg transform hover:scale-105 transition-transform duration-300 cursor-default">
-              <IQMLogoFull className="w-10 h-10 text-iqm-primary" />
-            </div>
+      {/* 2. Login Content Layer */}
+      <div className="relative z-10 w-full flex flex-col items-center p-4 animate-in fade-in zoom-in-95 duration-700">
+
+        {/* Brand Header */}
+        <div className="flex flex-col items-center mb-10 space-y-6">
+          {/* Logo Container with glass effect */}
+          <div className="bg-white/80 p-4 rounded-3xl shadow-lg ring-1 ring-black/5 backdrop-blur-xl transition-transform hover:scale-105 duration-500">
+            <IQMLogoFull className="w-12 h-12 text-indigo-600" />
           </div>
-          <h1 className="text-5xl lg:text-7xl font-bold text-gray-900 tracking-tight leading-tight">
-            Manage Tasks <br />
-            <span className="text-iqm-primary">Intelligently.</span>
-          </h1>
-          <p className="text-gray-500 text-lg max-w-md mx-auto lg:mx-0 leading-relaxed">
-            The centralized Employee Task Management System (IQM) for tracking performance, assigning modules, and verifying skills.
-          </p>
 
-
+          <div className="text-center space-y-1.5">
+            <h1 className="text-3xl lg:text-4xl font-bold tracking-tight text-gray-900">
+              Employee Management System IQM
+            </h1>
+            <p className="text-gray-500 font-medium text-sm lg:text-base tracking-wide">
+              Manage Task Intelligently
+            </p>
+          </div>
         </div>
 
-        {/* Right Side: Login Form */}
-        <div className="flex justify-center lg:justify-end w-full">
+        {/* Login Form */}
+        <div className="w-full max-w-[400px]">
           <LoginForm />
         </div>
 
       </div>
-
-      <footer className="mt-16 text-gray-400 text-sm">
-        © 2026 IQM Systems. All rights reserved.
-      </footer>
     </div>
   );
 }
