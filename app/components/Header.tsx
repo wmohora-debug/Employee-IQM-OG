@@ -6,7 +6,10 @@ export function Header({ title }: { title: string, user?: any }) {
 
     // Handle loading or missing user
     const name = user?.name || "User";
-    const role = user?.role ? (user.role.charAt(0).toUpperCase() + user.role.slice(1)) : "";
+    let roleLabel = "";
+    if (user?.role === 'admin') roleLabel = "Admin";
+    else if (user?.role === 'ceo') roleLabel = "CEO";
+    else roleLabel = user?.role ? (user.role.charAt(0).toUpperCase() + user.role.slice(1)) : "";
     const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
 
     return (
@@ -24,7 +27,8 @@ export function Header({ title }: { title: string, user?: any }) {
                     <div className="hidden md:block text-left">
                         <p className="text-sm font-bold text-gray-900 leading-tight">{name}</p>
                         <span className="inline-flex items-center px-2 py-0.5 rounded text-[10px] font-medium bg-indigo-50 text-indigo-700 mt-1 capitalize">
-                            {role}
+                            {roleLabel}
+                            {user.department && user.role !== 'admin' && user.role !== 'ceo' ? ` - ${user.department}` : ''}
                         </span>
                     </div>
                 </div>

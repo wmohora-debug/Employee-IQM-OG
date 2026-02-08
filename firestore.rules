@@ -1,22 +1,70 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+
+    // --- Helper Functions ---
+    function isAuthenticated() {
+      return request.auth != null;
+    }
     
-    // Helper function to check if user is HR
-    function isHR() {
-      return request.auth.uid == "vBlvUiEDmqXbN0dUP7iHSW8ZH1O2";
+    function isAdmin() {
+      // Allow if role is admin OR ceo
+      // This requires reading the user doc, which is already done in getUserData, so it's fine.
+      return getUserData().role == 'admin' || getUserData().role == 'ceo';
     }
 
-    match /users/{userId} {
-      allow read: if true;
-      // Allow HR to write anything
-      // Allow users to create their OWN profile, but role must be 'employee' (unless they are HR self-initializing)
-      allow write: if isHR() 
-                   || (request.auth.uid == userId && (resource == null || request.resource.data.role == 'employee'));
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
-    
+
+    function isLead() {
+      return getUserData().role == 'lead';
+    }
+
+    // Check if user is in the same department as the resource
+    // Note: This requires an extra read, use carefully for cost.
+    function isSameDepartment(resourceData) {
+      return resourceData.department == getUserData().department;
+    }
+
+    // --- Collection Rules ---
+
+    // Users: Public Read (for name display), Restricted Write
+    match /users/{userId} {
+      allow read: if isAuthenticated();
+      allow create: if isAuthenticated() && request.auth.uid == userId; // For AuthContext initial creation
+      allow update: if isAdmin() || (isAuthenticated() && request.auth.uid == userId); // Self update or Admin
+      allow delete: if isAdmin();
+    }
+
+    // Tasks: Department-based Access
+    match /tasks/{taskId} {
+      // Admin: Full Access
+      // Lead: Read/Write if in same department
+      // Employee: Read if assigned, Update if assigned (for status submission)
+      allow read: if isAdmin() 
+                  || (isLead() && isSameDepartment(resource.data))
+                  || (resource.data.assigneeIds.hasAny([request.auth.uid]));
+                  
+      allow create: if isAdmin() 
+                    || (isLead() && request.resource.data.department == getUserData().department);
+                    
+      allow update: if isAdmin()
+                    || (isLead() && isSameDepartment(resource.data))
+                    || (resource.data.assigneeIds.hasAny([request.auth.uid])); // Allow assignee to update (e.g. status)
+                    
+      allow delete: if isAdmin() || (isLead() && isSameDepartment(resource.data));
+    }
+
+    // SVM Ratings: Leads only
+    match /svm_ratings/{ratingId} {
+      allow read: if isAuthenticated(); // Employees can see their ratings aggregates (via user doc), but maybe raw ratings too?
+      allow write: if isAdmin() || isLead();
+    }
+
+    // Default: Deny
     match /{document=**} {
-      allow read, write: if true; // Keeping other collections open for now as per dev mode, can be tightened later
+      allow read, write: if false;
     }
   }
 }

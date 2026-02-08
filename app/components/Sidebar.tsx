@@ -1,11 +1,14 @@
 "use client";
 import { LayoutDashboard, CheckSquare, BarChart2, Award, LogOut, CheckCircle, Users } from "lucide-react";
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { IQMLogoFull } from "./Logo";
 import { useAuth } from "@/app/context/AuthContext";
 
-export function Sidebar({ role = 'lead' }: { role?: 'lead' | 'employee' | 'hr' }) {
+
+export function Sidebar({ role = 'lead' }: { role?: 'lead' | 'employee' | 'admin' | 'ceo' }) {
     const { logout } = useAuth();
+    const router = useRouter(); // Use router for cleaner nav if needed, but Links are fine.
 
     const handleLogout = async () => {
         try {
@@ -16,11 +19,18 @@ export function Sidebar({ role = 'lead' }: { role?: 'lead' | 'employee' | 'hr' }
     };
 
     const menuItems = [
-        // HR Role: Only User Management and Leaderboard
-        ...(role === 'hr' ? [
-            { name: 'Employees', icon: Users, href: `/dashboard/hr/employees` },
-            { name: 'User Management', icon: Users, href: `/dashboard/hr/sync` },
-            { name: 'Leaderboard', icon: Award, href: `/dashboard/hr/leaderboard` },
+        // Admin Role: Only User Management and Leaderboard
+        ...(role === 'admin' ? [
+            { name: 'Employees', icon: Users, href: `/dashboard/admin/employees` },
+            { name: 'Admin User Management', icon: Users, href: `/dashboard/admin/sync` },
+            { name: 'Leaderboard', icon: Award, href: `/dashboard/admin/leaderboard` },
+        ] : []),
+
+        // CEO Role: Leaderboard (Global), Employees (Grouped)
+        ...(role === 'ceo' ? [
+            { name: 'Leaderboard', icon: Award, href: `/dashboard/ceo/leaderboard` },
+            { name: 'Employees', icon: Users, href: `/dashboard/ceo/employees` },
+            { name: 'Tasks Overview', icon: CheckSquare, href: `/dashboard/ceo/tasks` },
         ] : []),
 
         // Lead Role: Dashboard, Tasks, Completed, Skills, Leaderboard (NO User Management)

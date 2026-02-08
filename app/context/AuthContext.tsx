@@ -37,27 +37,36 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
                     if (snap.exists()) {
                         const userData = snap.data() as User;
-                        setUser({ ...userData, uid: firebaseUser.uid }); // Ensure UID matches auth
+
+                        // MIGRATION / BACKFILL for Department
+                        if (!userData.department && !['admin', 'ceo'].includes(userData.role)) {
+                            console.warn("User missing department, backfilling default 'Development'");
+                            const updatedUser = { ...userData, department: 'Development', uid: firebaseUser.uid };
+                            await setDoc(userRef, { department: 'Development' }, { merge: true });
+                            setUser(updatedUser);
+                        } else {
+                            setUser({ ...userData, uid: firebaseUser.uid });
+                        }
 
                         // Handle redirection if on login page
-                        // Logic moved here to ensure we only redirect after profile load
                         const path = window.location.pathname;
                         if (path === '/') {
                             if (userData.role === 'lead') router.push('/dashboard/lead');
-                            else if (userData.role === 'hr') router.push('/dashboard/hr/sync'); // Default HR landing
+                            else if (userData.role === 'admin') router.push('/dashboard/admin/employees');
+                            else if (userData.role === 'ceo') router.push('/dashboard/ceo/employees');
                             else router.push('/dashboard/employee');
                         }
                     } else {
-                        // NEW USER HANDLING (Suraj Logic)
+                        // NEW USER HANDLING
                         console.log("Creating new user profile for", firebaseUser.email);
-                        // Heuristic: If email contains 'suraj', make Lead, else Employee.
-                        // Or relying on user request: "Suraj as lead".
                         const email = firebaseUser.email?.toLowerCase() || "";
                         let role: UserRole = "employee";
                         if (email.includes("suraj")) role = "lead";
-                        if (email.includes("hr")) role = "hr";
+                        if (email.includes("admin") || email.includes("hr")) role = "admin";
+                        // Auto-detect CEO for testing if needed, though usually manual.
+                        // For safety, let's not auto-assign CEO unless specific email.
+                        // Admin script creates CEO, so this block might not even run for him if created first.
 
-                        // Helper to capitalize: niraj -> Niraj
                         const rawName = firebaseUser.displayName || email.split('@')[0];
                         const displayName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
 
@@ -66,7 +75,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                             email: email,
                             name: displayName,
                             role: role,
-                            points: 0
+                            points: 0,
+                            // Admin/CEO has no department
+                            department: ['admin', 'ceo'].includes(role) ? undefined : 'Development'
                         };
 
                         await setDoc(userRef, {
@@ -77,7 +88,7 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
                         setUser(newUser);
                         if (role === 'lead') router.push('/dashboard/lead');
-                        else if (role === 'hr') router.push('/dashboard/hr/sync');
+                        else if (role === 'admin') router.push('/dashboard/admin/employees');
                         else router.push('/dashboard/employee');
                     }
                 } catch (error) {
@@ -86,6 +97,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
             } else {
                 // User is signed out
                 setUser(null);
+                const path = window.location.pathname;
+                // If on a protected route and signed out -> redirect to login
+                if (path.startsWith('/dashboard')) {
+                    router.push('/');
+                }
             }
             setLoading(false);
         });

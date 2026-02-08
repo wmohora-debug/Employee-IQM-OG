@@ -20,24 +20,27 @@ export function LeadTaskTable({ completedOnly = false }: { completedOnly?: boole
     const [targetModuleId, setTargetModuleId] = useState<string | null>(null);
 
     useEffect(() => {
-        if (!user) return;
-        // Subscribe to tasks as Lead (sees all)
-        const unsubscribe = subscribeToTasks(user.uid, "lead", (updatedTasks) => {
+        if (!user || user.role !== 'lead') return; // Guard clause
+        const dept = user.department || "Development"; // Fallback
+
+        // Subscribe to tasks as Lead (sees all in department)
+        const unsubscribe = subscribeToTasks(user.uid, "lead", dept, (updatedTasks) => {
             setTasks(updatedTasks);
         }, completedOnly);
         return () => unsubscribe();
     }, [user, completedOnly]);
 
-    // Fetch employees for name lookup
+    // Fetch employees for name lookup (Filtered by Department)
     useEffect(() => {
+        if (!user || user.role !== 'lead') return;
         const fetchUsers = async () => {
-            const employees = await getEmployees();
+            const employees = await getEmployees(user.department);
             const map: Record<string, User> = {};
             employees.forEach(u => map[u.uid] = u);
             setUserMap(map);
         };
         fetchUsers();
-    }, []);
+    }, [user]);
 
     const handleOpenVerification = (task: Task) => {
         setVerificationModal({ task });

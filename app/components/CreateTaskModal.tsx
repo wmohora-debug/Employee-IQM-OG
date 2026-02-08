@@ -34,15 +34,18 @@ export function CreateTaskModal({ isOpen, onClose }: CreateTaskModalProps) {
     const [employees, setEmployees] = useState<User[]>([]);
     const [loadingEmployees, setLoadingEmployees] = useState(true);
 
-    // Fetch Employees
+    // Fetch Employees (Filtered by Lead's Department)
     useEffect(() => {
         const fetchEmps = async () => {
-            const emps = await getEmployees();
+            if (!user) return;
+            // If user is lead, filter by their department. If admin/other, maybe all (but this modal is for Leads)
+            const dept = user.department || "Development";
+            const emps = await getEmployees(dept);
             setEmployees(emps);
             setLoadingEmployees(false);
         };
         fetchEmps();
-    }, []);
+    }, [user]);
 
     if (!isOpen) return null;
 
@@ -89,16 +92,18 @@ export function CreateTaskModal({ isOpen, onClose }: CreateTaskModalProps) {
                 assignedTo: modules[0].assignedTo,
                 assigneeIds: allAssignees,
                 assignedBy: user?.uid || '',
+                department: user?.department || 'Development', // Save Department
                 status: 'pending',
                 priority,
                 dueDate: new Date(dueDate),
-                attachments: [],
-                modules: modules.map(m => ({
+                modules: modules.map((m, idx) => ({
+                    id: `mod_${Date.now()}_${idx}`, // Temporary ID
                     title: m.title,
                     description: m.description,
                     assignedTo: m.assignedTo,
+                    status: 'pending', // Required field
                     // removed attachment completely
-                    completed: false
+                    // removed completed: false (not in interface)
                 }))
             });
 

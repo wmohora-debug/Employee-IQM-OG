@@ -22,14 +22,14 @@ export async function POST(req: NextRequest) {
         const decodedToken = await adminAuth.verifyIdToken(idToken);
         const callerUid = decodedToken.uid;
 
-        // 1. Verify Caller is HR
+        // 1. Verify Caller is Admin
         if (callerUid !== "vBlvUiEDmqXbN0dUP7iHSW8ZH1O2") {
-            return NextResponse.json({ error: "Forbidden: Only HR can onboard users" }, { status: 403 });
+            return NextResponse.json({ error: "Forbidden: Only Admin can onboard users" }, { status: 403 });
         }
 
-        const { email, password, name, role } = await req.json();
+        const { email, password, name, role, department } = await req.json();
 
-        if (!email || !password || !name || !role) {
+        if (!email || !password || !name || !role || !department) {
             return NextResponse.json({ error: "Missing required fields" }, { status: 400 });
         }
 
@@ -60,6 +60,7 @@ export async function POST(req: NextRequest) {
                 name,
                 email,
                 role,
+                department, // Save Department
                 status: 'active',
                 createdAt: new Date(),
                 onboardedBy: callerUid

@@ -19,7 +19,7 @@ import {
 import { ref } from "firebase/storage";
 
 // --- Types ---
-export type UserRole = 'lead' | 'employee' | 'hr';
+export type UserRole = 'lead' | 'employee' | 'admin' | 'ceo';
 
 export interface User {
     uid: string;
@@ -31,6 +31,7 @@ export interface User {
     password?: string;
     svmScore?: number;
     ratingCount?: number;
+    department?: string; // Optional for Admin, Required for others (enforced by logic)
 }
 
 export interface TaskModule {
@@ -61,6 +62,7 @@ export interface Task {
     dueDate: Date | Timestamp;
     assigneeIds?: string[];
     modules?: TaskModule[];
+    department?: string; // New Field for Task
 
     // Legacy fields (kept optional for type compatibility, but moving to module-level)
     submittedBy?: string;
@@ -101,7 +103,8 @@ export const createTask = async (taskData: Task) => {
         status: 'pending',
         createdAt: serverTimestamp(),
         // Ensure assigneeIds is populated from modules if not explicitly provided
-        assigneeIds: taskData.assigneeIds || (taskData.modules ? Array.from(new Set(taskData.modules.map(m => m.assignedTo).filter(Boolean))) : [taskData.assignedTo!].filter(Boolean))
+        assigneeIds: taskData.assigneeIds || (taskData.modules ? Array.from(new Set(taskData.modules.map(m => m.assignedTo).filter(Boolean))) : [taskData.assignedTo!].filter(Boolean)),
+        department: taskData.department || 'Development' // Default if missing
     };
 
     // If using modules, ensure they have IDs
@@ -120,17 +123,21 @@ export const deleteTask = async (taskId: string) => {
     await deleteDoc(doc(db, "tasks", taskId));
 };
 
-export const subscribeToTasks = (userId: string, role: string, callback: (tasks: Task[]) => void, completedOnly = false) => {
+export const subscribeToTasks = (userId: string, role: string, department: string, callback: (tasks: Task[]) => void, completedOnly = false) => {
     let q;
     const tasksRef = collection(db, "tasks");
 
     if (role === 'lead') {
         if (completedOnly) {
-            q = query(tasksRef, where("status", "==", "verified"), orderBy("createdAt", "desc"));
+            // Lead sees verified tasks from THEIR department
+            q = query(tasksRef, where("department", "==", department), where("status", "==", "verified"), orderBy("createdAt", "desc"));
         } else {
-            q = query(tasksRef, where("status", "in", ["pending", "in-progress", "submitted"]), orderBy("createdAt", "desc"));
+            // Lead sees active tasks from THEIR department
+            q = query(tasksRef, where("department", "==", department), where("status", "in", ["pending", "in-progress", "submitted"]), orderBy("createdAt", "desc"));
         }
     } else {
+        // Employee sees tasks assigned to them (Department check implicit via assignment, but good to filter if we wanted strictness)
+        // Keeping it simple: Assignee based.
         if (completedOnly) {
             q = query(tasksRef, where("assigneeIds", "array-contains", userId), where("status", "==", "verified"), orderBy("createdAt", "desc"));
         } else {
@@ -146,8 +153,23 @@ export const subscribeToTasks = (userId: string, role: string, callback: (tasks:
     });
 };
 
-export const getEmployees = async () => {
-    const q = query(collection(db, "users"), where("role", "==", "employee"));
+export const subscribeToAllTasks = (callback: (tasks: Task[]) => void) => {
+    const q = query(collection(db, "tasks"), orderBy("createdAt", "desc"));
+    return onSnapshot(q, (snapshot) => {
+        const tasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task));
+        callback(tasks);
+    }, (error) => {
+        console.error("Error subscribing to all tasks:", error);
+    });
+};
+
+export const getEmployees = async (department?: string) => {
+    let q;
+    if (department) {
+        q = query(collection(db, "users"), where("role", "==", "employee"), where("department", "==", department));
+    } else {
+        q = query(collection(db, "users"), where("role", "==", "employee"));
+    }
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => doc.data() as User);
 };
@@ -355,8 +377,14 @@ export const rejectTaskModule = async (taskId: string, moduleId: string, leadId:
 // Upload capability removed per new requirements.
 
 // --- Users ---
-export const subscribeToUsers = (callback: (users: User[]) => void) => {
-    const q = query(collection(db, "users"));
+export const subscribeToUsers = (department: string | undefined, callback: (users: User[]) => void) => {
+    let q;
+    if (department) {
+        q = query(collection(db, "users"), where("department", "==", department));
+    } else {
+        q = query(collection(db, "users"));
+    }
+
     return onSnapshot(q, (snapshot) => {
         const users = snapshot.docs.map(doc => doc.data() as User);
         callback(users);
@@ -367,8 +395,14 @@ export const subscribeToUsers = (callback: (users: User[]) => void) => {
 
 // --- Leaderboard & Stats ---
 
-export const subscribeToLeaderboard = (callback: (users: User[]) => void) => {
-    const q = query(collection(db, "users"), where("role", "==", "employee"));
+export const subscribeToLeaderboard = (department: string | undefined, callback: (users: User[]) => void) => {
+    let q;
+    if (department) {
+        q = query(collection(db, "users"), where("role", "==", "employee"), where("department", "==", department));
+    } else {
+        q = query(collection(db, "users"), where("role", "==", "employee"));
+    }
+
     return onSnapshot(q, (snapshot) => {
         const users = snapshot.docs.map(doc => doc.data() as User);
         // Centralized Sort: SVM Score DESC, then Points DESC
@@ -384,7 +418,8 @@ export const subscribeToLeaderboard = (callback: (users: User[]) => void) => {
 };
 
 // Helper: Subscribe to Stats (Lead)
-export const subscribeToLeadStats = (leadId: string, callback: (stats: any) => void) => {
+export const subscribeToLeadStats = (leadId: string, department: string, callback: (stats: any) => void) => {
+    // Tasks created by this lead (and presumably for their department)
     const tasksQuery = query(collection(db, "tasks"), where("assignedBy", "==", leadId));
 
     // We listen to tasks in real-time
@@ -394,8 +429,9 @@ export const subscribeToLeadStats = (leadId: string, callback: (stats: any) => v
         // Pending = Active (Pending + In-Progress + Submitted)
         const pending = tasks.filter((t: any) => t.status !== 'verified').length;
 
-        // Fetch users count (can be one-off or subscribed, one-off is usually fine for stats unless rapid hiring)
-        getDocs(collection(db, "users")).then((userSnap) => {
+        // Fetch users count - Filtered by DEPARTMENT now
+        const usersQuery = query(collection(db, "users"), where("department", "==", department));
+        getDocs(usersQuery).then((userSnap) => {
             const users = userSnap.docs.map(d => d.data());
             const totalEmployees = users.filter((u: any) => u.role === 'employee').length;
             const totalLeads = users.filter((u: any) => u.role === 'lead').length;
@@ -507,6 +543,9 @@ export const submitSVMRating = async (leadId: string, employeeId: string, rating
     });
 };
 
+// Activity Log removed per request.
+// (Data is still written to 'activity_logs' collection for audit trail)
+
 // --- Admin / Sync ---
 
 export const syncUser = async (uid: string, name: string, role: UserRole) => {
@@ -524,6 +563,7 @@ export const syncUser = async (uid: string, name: string, role: UserRole) => {
         uid,
         name,
         role,
+        department: "Development", // Default for synced users, can be updated later
         status: "active",
         syncedAt: serverTimestamp()
     }, { merge: true });

@@ -25,11 +25,11 @@ export async function POST(req: NextRequest) {
         const decodedToken = await adminAuth.verifyIdToken(idToken);
         const callerUid = decodedToken.uid;
 
-        // 1. Verify Caller is HR
-        // We know HR UID is hardcoded or we can check the db
+        // 1. Verify Caller is Admin
+        // We know Admin UID is hardcoded or we can check the db
         if (callerUid !== "vBlvUiEDmqXbN0dUP7iHSW8ZH1O2") {
             // Double check via DB if needed, but for now strict checking
-            return NextResponse.json({ error: "Forbidden: Only HR can terminate users" }, { status: 403 });
+            return NextResponse.json({ error: "Forbidden: Only Admin can terminate users" }, { status: 403 });
         }
 
         if (!targetUid) {
@@ -40,14 +40,14 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ error: "Cannot terminate yourself" }, { status: 400 });
         }
 
-        // 2. Verify Target is NOT HR
+        // 2. Verify Target is NOT Admin
         const targetDoc = await adminDb.collection("users").doc(targetUid).get();
         if (!targetDoc.exists) {
             return NextResponse.json({ error: "User not found" }, { status: 404 });
         }
         const targetData = targetDoc.data();
-        if (targetData?.role === 'hr') {
-            return NextResponse.json({ error: "Cannot terminate another HR" }, { status: 403 });
+        if (targetData?.role === 'admin') {
+            return NextResponse.json({ error: "Cannot terminate another Admin" }, { status: 403 });
         }
 
         console.log(`Terminating user ${targetUid} by ${callerUid}`);

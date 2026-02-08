@@ -7,11 +7,12 @@ import { Users, Save, CheckCircle, UserMinus, AlertTriangle, Loader2 } from "luc
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
 
-export default function HRSyncUserPage() {
+export default function AdminUserManagementPage() {
     const [email, setEmail] = useState("");
     const [password, setPassword] = useState("");
     const [name, setName] = useState("");
     const [role, setRole] = useState<UserRole>("employee");
+    const [department, setDepartment] = useState("Development");
     const [status, setStatus] = useState<'idle' | 'loading' | 'success'>('idle');
 
     const handleOnboard = async (e: React.FormEvent) => {
@@ -26,7 +27,7 @@ export default function HRSyncUserPage() {
                     'Content-Type': 'application/json',
                     'Authorization': `Bearer ${token}`
                 },
-                body: JSON.stringify({ email, password, name, role })
+                body: JSON.stringify({ email, password, name, role, department })
             });
 
             const data = await res.json().catch(() => null);
@@ -37,6 +38,7 @@ export default function HRSyncUserPage() {
             setPassword("");
             setName("");
             setRole("employee");
+            setDepartment("Development");
 
             setTimeout(() => setStatus('idle'), 3000);
         } catch (error: any) {
@@ -103,16 +105,30 @@ export default function HRSyncUserPage() {
                                     </div>
                                 </div>
 
-                                <div>
-                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Role</label>
-                                    <select
-                                        value={role}
-                                        onChange={(e) => setRole(e.target.value as UserRole)}
-                                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-iqm-primary/20 focus:border-iqm-primary outline-none transition-all"
-                                    >
-                                        <option value="employee">Employee</option>
-                                        <option value="lead">Lead</option>
-                                    </select>
+                                <div className="grid grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">Role</label>
+                                        <select
+                                            value={role}
+                                            onChange={(e) => setRole(e.target.value as UserRole)}
+                                            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-iqm-primary/20 focus:border-iqm-primary outline-none transition-all"
+                                        >
+                                            <option value="employee">Employee</option>
+                                            <option value="lead">Lead</option>
+                                        </select>
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-semibold text-gray-700 mb-2">Department</label>
+                                        <select
+                                            value={department}
+                                            onChange={(e) => setDepartment(e.target.value)}
+                                            className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-iqm-primary/20 focus:border-iqm-primary outline-none transition-all"
+                                        >
+                                            <option value="Development">Development</option>
+                                            <option value="UX">UX</option>
+                                            <option value="Social Media">Social Media</option>
+                                        </select>
+                                    </div>
                                 </div>
                             </div>
 
@@ -278,7 +294,7 @@ function TerminateUserSection() {
                                 >
                                     <div>
                                         <p className="font-bold text-gray-800">{user.name}</p>
-                                        <p className="text-xs text-gray-500">{user.email} • {user.role}</p>
+                                        <p className="text-xs text-gray-500">{user.email} • {user.role} • <span className="text-iqm-primary">{user.department || "N/A"}</span></p>
                                     </div>
                                     {selectedUser?.uid === user.uid && <UserMinus className="w-5 h-5 text-red-500" />}
                                 </div>
@@ -295,7 +311,7 @@ function TerminateUserSection() {
                             <div>
                                 <p className="text-lg font-bold text-gray-900">{selectedUser.name}</p>
                                 {/* REMOVED UID DISPLAY */}
-                                <p className="text-sm text-gray-600">{selectedUser.role.toUpperCase()} • {selectedUser.email}</p>
+                                <p className="text-sm text-gray-600">{selectedUser.role.toUpperCase()} • {selectedUser.department}</p>
                             </div>
                         </div>
                         <button

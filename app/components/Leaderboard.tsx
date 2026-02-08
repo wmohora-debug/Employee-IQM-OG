@@ -3,23 +3,34 @@ import { Trophy } from "lucide-react";
 import { useState, useEffect } from "react";
 import { subscribeToLeaderboard, User } from "@/lib/db";
 
-export function Leaderboard() {
+import { useAuth } from "@/app/context/AuthContext";
+
+export function Leaderboard({ department }: { department?: string }) {
+    const { user } = useAuth();
     const [leaders, setLeaders] = useState<User[]>([]);
 
     useEffect(() => {
-        const unsubscribe = subscribeToLeaderboard((users) => {
-            // Sort by SVM Score (descending)
+        if (!user) return;
+        // Prioritize prop, then user department, then undefined (all)
+        // If department prop is passed, use it.
+        // If not, use user.department (for Lead/Employee).
+        // If user is Admin and no prop, department might be undefined -> shows all which is fallback, BUT admin page uses specific multiple tables.
+
+        const targetDept = department || user.department || undefined;
+
+        const unsubscribe = subscribeToLeaderboard(targetDept, (users) => {
+            // Sort by SVM Score (descending) - Client side sorting as well just in case
             const sorted = [...users].sort((a, b) => (b.svmScore || 0) - (a.svmScore || 0));
             setLeaders(sorted);
         });
         return () => unsubscribe();
-    }, []);
+    }, [user, department]);
 
     return (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 h-full">
             <h3 className="text-lg font-bold text-gray-800 mb-6 flex items-center gap-2">
                 <Trophy className="w-5 h-5 text-iqm-primary" />
-                Performance Leaderboard
+                {department ? `${department} Leaderboard` : "Performance Leaderboard"}
             </h3>
             <div className="space-y-4">
                 {leaders.length === 0 ? (

@@ -26,7 +26,7 @@ export function EmployeeTaskTable({ completedOnly = false, compact = false }: { 
 
         console.log(`[UI] Subscribing to tasks for user: ${user.uid} (${user.name})`);
 
-        const unsubscribe = subscribeToTasks(user.uid, "employee", (updatedTasks) => {
+        const unsubscribe = subscribeToTasks(user.uid, "employee", user.department || "", (updatedTasks) => {
             console.log(`[UI] Table received ${updatedTasks.length} tasks.`);
             setTasks(updatedTasks);
         }, completedOnly);

@@ -1,7 +1,6 @@
-"use client";
 import { Sidebar } from "@/app/components/Sidebar";
 
-export default function HRDashboardLayout({
+export default function CEODashboardLayout({
     children,
 }: {
     children: React.ReactNode;
@@ -9,7 +8,7 @@ export default function HRDashboardLayout({
     return (
         <div className="min-h-screen bg-gray-50 font-sans text-gray-900">
             {/* Global Sidebar - Persists across all matching routes */}
-            <Sidebar role="hr" />
+            <Sidebar role="ceo" />
 
             {/* Child pages render here */}
             {children}

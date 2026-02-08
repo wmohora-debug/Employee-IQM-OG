@@ -5,17 +5,39 @@ import { getEmployees, submitSVMRating, User } from "@/lib/db";
 import { useAuth } from "@/app/context/AuthContext";
 import { StarRating } from "./StarRating";
 
-const SKILLS = [
-    "Programming Language",
-    "Framework / Tools",
-    "Problem Solving",
-    "Code Quality",
-    "Debugging Skills",
-    "System Understanding"
-];
+const getSkillsByDepartment = (dept: string = "Development") => {
+    switch (dept) {
+        case "UX":
+            return [
+                "UX Thinking",
+                "Visual Design",
+                "Wireframing",
+                "Accessibility",
+                "Detail Orientation"
+            ];
+        case "Social Media":
+            return [
+                "Content Quality",
+                "Engagement",
+                "Consistency",
+                "Trend Awareness",
+                "Brand Alignment"
+            ];
+        case "Development":
+        default:
+            return [
+                "Code Quality",
+                "Problem Solving",
+                "Tech Knowledge",
+                "Task Completion",
+                "System Understanding"
+            ];
+    }
+};
 
 function EmployeeRatingRow({ employee, leadId }: { employee: User; leadId: string }) {
-    const [ratings, setRatings] = useState<number[]>([0, 0, 0, 0, 0, 0]);
+    const skills = getSkillsByDepartment(employee.department);
+    const [ratings, setRatings] = useState<number[]>(new Array(skills.length).fill(0));
     const [status, setStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
 
     const handleRate = (index: number, value: number) => {
@@ -58,6 +80,7 @@ function EmployeeRatingRow({ employee, leadId }: { employee: User; leadId: strin
                     <div className="flex justify-center">
                         <StarRating rating={r} onRate={(val) => handleRate(i, val)} size={14} />
                     </div>
+                    <div className="text-[9px] text-gray-400 mt-1">{skills[i]}</div>
                 </td>
             ))}
             <td className="px-4 py-4 text-right">
@@ -95,23 +118,28 @@ export function SkillMatrix({ isEditable = false }: { isEditable?: boolean }) {
     const [loading, setLoading] = useState(false);
 
     useEffect(() => {
-        if (mode === 'rate') {
+        if (mode === 'rate' && user) {
             setLoading(true);
-            getEmployees().then(emps => {
+            // Filter employees by user's department
+            const dept = user.department || "Development";
+            getEmployees(dept).then(emps => {
                 setEmployees(emps);
                 setLoading(false);
             });
         }
-    }, [mode]);
+    }, [mode, user]);
 
     if (!user) return null;
+
+    // Use department of the lead (user) to determine table headers
+    const currentSkills = getSkillsByDepartment(user.department);
 
     return (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden h-full flex flex-col">
             <div className="p-6 border-b border-gray-100 flex items-center justify-between bg-white sticky top-0 z-20">
                 <h3 className="text-lg font-bold text-gray-800 flex items-center gap-2">
                     <Zap className="w-5 h-5 text-iqm-primary" />
-                    Skill Assessment Matrix
+                    Skill Assessment Matrix ({user.department || 'General'})
                 </h3>
                 {mode === 'view' && isEditable && (
                     <button
@@ -153,7 +181,7 @@ export function SkillMatrix({ isEditable = false }: { isEditable?: boolean }) {
                                 <thead className="bg-gray-50 text-gray-500 text-[10px] uppercase font-bold tracking-wider sticky top-0 z-10 border-b border-gray-100 shadow-sm">
                                     <tr>
                                         <th className="px-4 py-3">Employee</th>
-                                        {SKILLS.map(skill => (
+                                        {currentSkills.map(skill => (
                                             <th key={skill} className="px-2 py-3 text-center w-24">{skill}</th>
                                         ))}
                                         <th className="px-4 py-3 text-right">Action</th>

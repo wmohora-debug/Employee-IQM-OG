@@ -20,12 +20,15 @@ export default function LeadDashboard() {
     });
 
     useEffect(() => {
-        if (!user) return;
-        const unsub = subscribeToLeadStats(user.uid, (updatedStats) => {
+        if (!user || !user.department) return;
+        // Subscribe to stats for user's department
+        const unsub = subscribeToLeadStats(user.uid, user.department, (updatedStats) => {
             setStats(updatedStats);
         });
         return () => unsub();
     }, [user]);
+
+    const deptName = user?.department || "Department";
 
     return (
         <>
@@ -36,13 +39,13 @@ export default function LeadDashboard() {
                 {/* Stats Row */}
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     <StatCard
-                        label="Total Employees"
+                        label={`Employees (${deptName})`}
                         value={stats.totalEmployees}
                         iconImage="/icons/kpi-employees.png"
                         color="bg-indigo-500"
                     />
                     <StatCard
-                        label="Active Leads"
+                        label={`Leads (${deptName})`}
                         value={stats.totalLeads}
                         iconImage="/icons/kpi-leads.png"
                         color="bg-purple-500"
