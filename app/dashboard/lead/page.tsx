@@ -4,6 +4,7 @@ import { Header } from "@/app/components/Header";
 import { StatCard } from "@/app/components/StatCard";
 import { LeadTaskTable } from "@/app/components/LeadTaskTable";
 import { SkillMatrix } from "@/app/components/SkillMatrix";
+import { CeoAssignedTasksList } from "@/app/components/CeoAssignedTasksList";
 import { Leaderboard } from "@/app/components/Leaderboard";
 import { Target, Clock, CheckCircle } from "lucide-react";
 import { useEffect, useState } from "react";
@@ -65,7 +66,11 @@ export default function LeadDashboard() {
                 </div>
 
                 {/* Task Management Section */}
-                <section>
+                <section className="space-y-8">
+                    {/* Strategic Tasks */}
+                    <CeoAssignedTasksList />
+
+                    {/* Operational Tasks */}
                     <LeadTaskTable />
                 </section>
 

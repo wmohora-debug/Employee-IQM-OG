@@ -18,7 +18,7 @@ export function StarRating({ rating, maxRating = 5, onRate, readOnly = false, si
                     type="button"
                     onClick={() => !readOnly && onRate && onRate(i + 1)}
                     disabled={readOnly}
-                    className={`transition-all ${readOnly ? 'cursor-default' : 'cursor-pointer hover:scale-110'}`}
+                    className={`transition-all p-1 ${readOnly ? 'cursor-default' : 'cursor-pointer hover:scale-110'}`}
                 >
                     <Star
                         size={size}

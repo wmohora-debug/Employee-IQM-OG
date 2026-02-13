@@ -13,7 +13,7 @@ export function Header({ title }: { title: string, user?: any }) {
     const initials = name.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
 
     return (
-        <header className="h-20 bg-white border-b border-gray-100 flex items-center justify-between px-4 md:px-8 md:ml-64 transition-all sticky top-0 z-20">
+        <header className="h-20 bg-white border-b border-gray-100 flex items-center justify-between px-4 pl-14 md:px-8 md:pl-8 md:ml-64 transition-all sticky top-0 z-20">
             <div>
                 <h2 className="text-xl md:text-2xl font-bold text-gray-800">{title}</h2>
             </div>

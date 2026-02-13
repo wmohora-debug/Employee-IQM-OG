@@ -25,7 +25,9 @@ export function LeadTaskTable({ completedOnly = false }: { completedOnly?: boole
 
         // Subscribe to tasks as Lead (sees all in department)
         const unsubscribe = subscribeToTasks(user.uid, "lead", dept, (updatedTasks) => {
-            setTasks(updatedTasks);
+            // Filter out CEO tasks (Operational tasks only)
+            const operationalTasks = updatedTasks.filter(t => t.createdByRole !== 'ceo');
+            setTasks(operationalTasks);
         }, completedOnly);
         return () => unsubscribe();
     }, [user, completedOnly]);
@@ -161,7 +163,7 @@ export function LeadTaskTable({ completedOnly = false }: { completedOnly?: boole
             />
 
             <div className="overflow-x-auto min-h-[300px]">
-                <table className="w-full text-left">
+                <table className="w-full text-left min-w-[800px]">
                     <thead className="bg-gray-50 text-gray-500 text-xs uppercase font-semibold border-b border-gray-100">
                         <tr>
                             <th className="px-6 py-4 font-medium">Task Name</th>
@@ -332,7 +334,7 @@ export function LeadTaskTable({ completedOnly = false }: { completedOnly?: boole
             </div>
 
             {verificationModal && (
-                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4">
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
                     <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col max-h-[90vh]">
                         <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 shrink-0">
                             <div>

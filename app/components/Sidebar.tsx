@@ -1,22 +1,34 @@
 "use client";
-import { LayoutDashboard, CheckSquare, BarChart2, Award, LogOut, CheckCircle, Users } from "lucide-react";
+import { LayoutDashboard, CheckSquare, BarChart2, Award, LogOut, CheckCircle, Users, Menu, X } from "lucide-react";
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { IQMLogoFull } from "./Logo";
 import { useAuth } from "@/app/context/AuthContext";
+import { useState } from "react";
+import { LogoutModal } from "./LogoutModal";
 
 
 export function Sidebar({ role = 'lead' }: { role?: 'lead' | 'employee' | 'admin' | 'ceo' }) {
     const { logout } = useAuth();
-    const router = useRouter(); // Use router for cleaner nav if needed, but Links are fine.
+    const router = useRouter();
+    const [isOpen, setIsOpen] = useState(false);
 
-    const handleLogout = async () => {
+    const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
+
+    const handleLogoutClick = () => {
+        setIsLogoutModalOpen(true);
+    };
+
+    const confirmLogout = async () => {
         try {
             await logout();
+            setIsLogoutModalOpen(false);
         } catch (error) {
             console.error("Logout failed", error);
         }
     };
+
+    const toggleSidebar = () => setIsOpen(!isOpen);
 
     const menuItems = [
         // Admin Role: Only User Management and Leaderboard
@@ -31,6 +43,7 @@ export function Sidebar({ role = 'lead' }: { role?: 'lead' | 'employee' | 'admin
             { name: 'Leaderboard', icon: Award, href: `/dashboard/ceo/leaderboard` },
             { name: 'Employees', icon: Users, href: `/dashboard/ceo/employees` },
             { name: 'Tasks Overview', icon: CheckSquare, href: `/dashboard/ceo/tasks` },
+            { name: 'Strategic Tasks', icon: BarChart2, href: `/dashboard/ceo/strategic-tasks` },
         ] : []),
 
         // Lead Role: Dashboard, Tasks, Completed, Skills, Leaderboard (NO User Management)
@@ -52,37 +65,67 @@ export function Sidebar({ role = 'lead' }: { role?: 'lead' | 'employee' | 'admin
     ];
 
     return (
-        <aside className="w-64 bg-iqm-sidebar text-white hidden md:flex flex-col h-full min-h-screen fixed left-0 top-0 z-10 shadow-xl overflow-hidden">
+        <>
+            {/* Mobile Toggle Button */}
+            <button
+                className="md:hidden fixed top-4 left-4 z-50 p-2 bg-iqm-primary text-white rounded-md shadow-lg hover:bg-iqm-primary/90 transition-colors"
+                onClick={toggleSidebar}
+                aria-label="Toggle Sidebar"
+            >
+                {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
+            </button>
 
-            <div className="p-6 flex items-center gap-3 border-b border-white/10">
-                <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shrink-0 shadow-md group cursor-pointer hover:scale-105 transition-transform">
-                    <IQMLogoFull className="w-7 h-7 text-iqm-primary" />
+            {/* Overlay for mobile */}
+            {isOpen && (
+                <div
+                    className="fixed inset-0 bg-black/50 z-30 md:hidden backdrop-blur-sm transition-opacity"
+                    onClick={() => setIsOpen(false)}
+                />
+            )}
+
+            <LogoutModal
+                isOpen={isLogoutModalOpen}
+                onClose={() => setIsLogoutModalOpen(false)}
+                onConfirm={confirmLogout}
+            />
+
+            <aside className={`
+                w-64 bg-iqm-sidebar text-white flex flex-col h-full min-h-screen fixed left-0 top-0 z-40 shadow-xl overflow-hidden transition-transform duration-300 ease-in-out
+                ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+                md:translate-x-0
+            `}>
+
+                <div className="p-6 flex items-center gap-3 border-b border-white/10">
+                    <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shrink-0 shadow-md group cursor-pointer hover:scale-105 transition-transform">
+                        <IQMLogoFull className="w-7 h-7 text-iqm-primary" />
+                    </div>
+                    <h1 className="text-2xl font-bold tracking-tight">IQM</h1>
                 </div>
-                <h1 className="text-2xl font-bold tracking-tight">IQM</h1>
-            </div>
 
-            <nav className="flex-1 px-4 py-6 space-y-2">
-                {menuItems.map((item) => (
-                    <Link
-                        key={item.name}
-                        href={item.href}
-                        className="group flex items-center gap-3 px-4 py-3 rounded-xl text-white/90 hover:bg-white/10 hover:text-white transition-all duration-200 active:scale-95 font-medium"
+                <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+                    {menuItems.map((item) => (
+                        <Link
+                            key={item.name}
+                            href={item.href}
+                            onClick={() => setIsOpen(false)} // Close on navigate (mobile)
+                            className="group flex items-center gap-3 px-4 py-3 rounded-xl text-white/90 hover:bg-white/10 hover:text-white transition-all duration-200 active:scale-95 font-medium"
+                        >
+                            <item.icon className="w-5 h-5 opacity-80 group-hover:scale-110 group-hover:opacity-100 transition-all" />
+                            <span className="text-sm tracking-wide">{item.name}</span>
+                        </Link>
+                    ))}
+                </nav>
+
+                <div className="p-4 border-t border-white/10 space-y-1">
+                    <button
+                        onClick={handleLogoutClick}
+                        className="flex items-center gap-3 px-4 py-3 w-full rounded-xl text-white/80 hover:bg-red-500/20 hover:text-red-100 transition-all duration-200 active:scale-95 text-left text-sm font-medium group"
                     >
-                        <item.icon className="w-5 h-5 opacity-80 group-hover:scale-110 group-hover:opacity-100 transition-all" />
-                        <span className="text-sm tracking-wide">{item.name}</span>
-                    </Link>
-                ))}
-            </nav>
-
-            <div className="p-4 border-t border-white/10 space-y-1">
-                <button
-                    onClick={handleLogout}
-                    className="flex items-center gap-3 px-4 py-3 w-full rounded-xl text-white/80 hover:bg-red-500/20 hover:text-red-100 transition-all duration-200 active:scale-95 text-left text-sm font-medium group"
-                >
-                    <LogOut className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
-                    <span>Logout</span>
-                </button>
-            </div>
-        </aside>
+                        <LogOut className="w-4 h-4 group-hover:-translate-x-1 transition-transform" />
+                        <span>Logout</span>
+                    </button>
+                </div>
+            </aside>
+        </>
     );
 }

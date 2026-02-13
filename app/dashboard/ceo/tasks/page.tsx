@@ -50,7 +50,7 @@ export default function CEOTasksPage() {
 
     // Derived Stats for Workload
     const deptStats = ["Development", "UX", "Social Media"].map(dept => {
-        const deptTasks = tasks.filter(t => t.department === dept && t.status !== 'verified'); // Active tasks
+        const deptTasks = tasks.filter(t => t.department === dept && t.status !== 'verified' && t.createdByRole !== 'ceo'); // Active tasks, excluding CEO assigned
         return {
             name: dept,
             count: deptTasks.length,
@@ -60,11 +60,11 @@ export default function CEOTasksPage() {
         };
     });
 
-    // Group Tasks
+    // Group Tasks (Excluding CEO Strategic Tasks)
     const groupedTasks = {
-        Development: tasks.filter(t => t.department === 'Development'),
-        UX: tasks.filter(t => t.department === 'UX'),
-        'Social Media': tasks.filter(t => t.department === 'Social Media')
+        Development: tasks.filter(t => t.department === 'Development' && t.createdByRole !== 'ceo'),
+        UX: tasks.filter(t => t.department === 'UX' && t.createdByRole !== 'ceo'),
+        'Social Media': tasks.filter(t => t.department === 'Social Media' && t.createdByRole !== 'ceo')
     };
 
     if (loading || (isLoadingData && tasks.length === 0)) {
@@ -128,7 +128,7 @@ export default function CEOTasksPage() {
                                 </div>
 
                                 <div className="overflow-x-auto">
-                                    <table className="w-full text-left text-sm">
+                                    <table className="w-full text-left text-sm min-w-[800px]">
                                         <thead className="bg-gray-50 text-gray-500 font-medium border-b border-gray-100">
                                             <tr>
                                                 <th className="px-6 py-3 w-1/4">Task Name</th>

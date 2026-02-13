@@ -57,7 +57,8 @@ export interface Task {
     description: string;
     assignedTo?: string; // Legacy/Fallback
     assignedBy: string;
-    status: 'pending' | 'in-progress' | 'submitted' | 'verified'; // Overall status
+    createdByRole?: string; // New: To identify CEO tasks
+    status: 'pending' | 'in-progress' | 'submitted' | 'verified' | 'completed'; // Added completed for CEO tasks
     priority: 'low' | 'medium' | 'high';
     dueDate: Date | Timestamp;
     assigneeIds?: string[];
@@ -160,6 +161,53 @@ export const subscribeToAllTasks = (callback: (tasks: Task[]) => void) => {
         callback(tasks);
     }, (error) => {
         console.error("Error subscribing to all tasks:", error);
+    });
+};
+
+// --- CEO Task Functions ---
+
+export const subscribeToCeoTasks = (leadId: string, callback: (tasks: Task[]) => void) => {
+    // Lead sees tasks assigned to them by CEO (createdByRole == 'ceo')
+    // and status is NOT completed (for active view)
+    const q = query(
+        collection(db, "tasks"),
+        where("assignedTo", "==", leadId),
+        where("assignedBy", "==", "ceo_user_id_placeholder"), // Wait, we store ID. We need a way to know it's CEO.
+        // Better constraint: We add a 'createdByRole' field to tasks? 
+        // Or we just rely on the UI context. 
+        // Requirement says: assignedLeadId == loggedInLeadId, createdByRole == "ceo"
+        where("createdByRole", "==", "ceo"),
+        where("status", "!=", "completed"),
+        orderBy("status"),
+        orderBy("createdAt", "desc")
+    );
+
+    // Firestore limitation: != and == on different fields requires composite index. 
+    // Simplify: Get all for lead, filter in client for now to avoid index creation block.
+    const qSimple = query(
+        collection(db, "tasks"),
+        where("assignedTo", "==", leadId),
+        where("createdByRole", "==", "ceo"),
+        orderBy("createdAt", "desc") // We'll sort by date
+    );
+
+    return onSnapshot(qSimple, (snapshot) => {
+        const tasks = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Task));
+        // Client-side filter for completion if needed, but "completed" status is what we want to HIDE usually?
+        // The requirement says "Remove task from list". So filter out completed.
+        const activeTasks = tasks.filter(t => t.status !== 'completed');
+        callback(activeTasks);
+    }, (error) => {
+        console.error("Error subscribing to CEO tasks:", error);
+    });
+};
+
+export const completeCeoTask = async (taskId: string, leadId: string) => {
+    const ref = doc(db, "tasks", taskId);
+    await updateDoc(ref, {
+        status: 'completed',
+        completedBy: leadId,
+        completedAt: serverTimestamp()
     });
 };
 

@@ -122,7 +122,7 @@ export function CreateTaskModal({ isOpen, onClose }: CreateTaskModalProps) {
     };
 
     return (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+        <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
             <div className="bg-white rounded-2xl w-full max-w-2xl max-h-[90vh] overflow-hidden flex flex-col shadow-2xl">
                 {/* Header */}
                 <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50">
@@ -160,7 +160,7 @@ export function CreateTaskModal({ isOpen, onClose }: CreateTaskModalProps) {
                                 onChange={(e) => setDescription(e.target.value)}
                             />
                         </div>
-                        <div className="grid grid-cols-2 gap-4">
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                             <div>
                                 <label className="block text-sm font-medium text-gray-700 mb-1">Due Date</label>
                                 <input
