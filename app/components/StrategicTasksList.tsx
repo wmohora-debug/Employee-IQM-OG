@@ -3,12 +3,14 @@
 import { useState, useEffect } from "react";
 import { subscribeToAllTasks, subscribeToUsers, Task, User, deleteTask } from "@/lib/db";
 import { ExpandableText } from "./ExpandableText";
-import { Copy, Trash2, Calendar, CheckCircle2, Clock, MoreHorizontal } from "lucide-react";
+import { Copy, Trash2, Calendar, CheckCircle2, Clock, MoreHorizontal, Pencil } from "lucide-react";
+import { EditTaskModal } from "./EditTaskModal";
 
 export function StrategicTasksList() {
     const [tasks, setTasks] = useState<Task[]>([]);
     const [usersMap, setUsersMap] = useState<Record<string, User>>({});
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
+    const [editTaskData, setEditTaskData] = useState<Task | null>(null);
 
     // Subscribe to tasks
     useEffect(() => {
@@ -41,7 +43,7 @@ export function StrategicTasksList() {
     if (tasks.length === 0) return null;
 
     return (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden animate-in fade-in duration-500">
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden animate-in fade-in duration-500 relative">
             <div className="p-6 border-b border-gray-100 bg-gray-50/50">
                 <h2 className="text-lg font-bold text-gray-800">Assigned To Lead</h2>
                 <p className="text-sm text-gray-500">Overview of strategic directives dispatched.</p>
@@ -113,6 +115,18 @@ export function StrategicTasksList() {
 
                                         {openMenuId === task.id && (
                                             <div className="absolute right-8 top-12 w-40 bg-white rounded-xl shadow-xl border border-gray-100 z-50 animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
+                                                {!isCompleted && (
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setEditTaskData(task);
+                                                            setOpenMenuId(null);
+                                                        }}
+                                                        className="w-full text-left px-4 py-3 text-gray-700 hover:bg-gray-50 text-sm font-medium flex items-center gap-2 transition-colors border-b border-gray-50"
+                                                    >
+                                                        <Pencil className="w-4 h-4" /> Edit Task
+                                                    </button>
+                                                )}
                                                 <button
                                                     onClick={(e) => { e.stopPropagation(); handleDelete(task.id!); }}
                                                     className="w-full text-left px-4 py-3 text-red-600 hover:bg-red-50 text-sm font-medium flex items-center gap-2 transition-colors"
@@ -128,6 +142,12 @@ export function StrategicTasksList() {
                     </tbody>
                 </table>
             </div>
+
+            <EditTaskModal
+                task={editTaskData}
+                isOpen={!!editTaskData}
+                onClose={() => setEditTaskData(null)}
+            />
         </div>
     );
 }

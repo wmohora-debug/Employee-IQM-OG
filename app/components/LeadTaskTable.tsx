@@ -4,12 +4,14 @@ import { useState, useEffect } from "react";
 import { subscribeToTasks, Task, deleteTask, getEmployees, User, verifyTask, rejectTask, verifyTaskModule, rejectTaskModule } from "@/lib/db";
 import { useAuth } from "@/app/context/AuthContext";
 import { CreateTaskModal } from "./CreateTaskModal";
+import { EditTaskModal } from "./EditTaskModal";
 import { ExpandableText } from "./ExpandableText";
 
 export function LeadTaskTable({ completedOnly = false }: { completedOnly?: boolean }) {
     const { user } = useAuth();
     const [tasks, setTasks] = useState<Task[]>([]);
     const [isCreateModalOpen, setIsCreateModalOpen] = useState(false);
+    const [editTaskData, setEditTaskData] = useState<Task | null>(null);
     const [userMap, setUserMap] = useState<Record<string, User>>({});
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
 
@@ -58,10 +60,6 @@ export function LeadTaskTable({ completedOnly = false }: { completedOnly?: boole
         setProcessing(true);
         try {
             await verifyTaskModule(verificationModal.task.id!, moduleId, user.uid);
-            // Close modal or refresh? The subscription will update the task, but we might want to keep the modal open to verify others?
-            // If we keep modal open, we need to know the task updated. 
-            // The subscription updates 'tasks' state, but 'verificationModal.task' is a local snapshot. 
-            // We should ideally close it or re-sync it. Closing is safer to avoid stale state.
             setVerificationModal(null);
         } catch (error) {
             console.error(error);
@@ -117,11 +115,6 @@ export function LeadTaskTable({ completedOnly = false }: { completedOnly?: boole
         setOpenMenuId(openMenuId === taskId ? null : taskId);
     };
 
-    // ... (rest of rendering)
-
-    // Update Action Column Logic and Modal Rendering
-    // ...
-
     const getStatusColor = (status: Task['status']) => {
         switch (status) {
             case 'verified': return "bg-green-100 text-green-700 bg-opacity-50 border border-green-200";
@@ -160,6 +153,12 @@ export function LeadTaskTable({ completedOnly = false }: { completedOnly?: boole
             <CreateTaskModal
                 isOpen={isCreateModalOpen}
                 onClose={() => setIsCreateModalOpen(false)}
+            />
+
+            <EditTaskModal
+                task={editTaskData}
+                isOpen={!!editTaskData}
+                onClose={() => setEditTaskData(null)}
             />
 
             <div className="overflow-x-auto min-h-[300px]">
@@ -307,6 +306,19 @@ export function LeadTaskTable({ completedOnly = false }: { completedOnly?: boole
                                                 {openMenuId === task.id && (
                                                     <div className="absolute right-0 mt-2 w-36 bg-white rounded-xl shadow-lg border border-gray-100 z-50 animate-in fade-in slide-in-from-top-1 duration-100">
                                                         <div className="py-1">
+                                                            {!(task.status === 'completed' || task.status === 'verified') && (
+                                                                <button
+                                                                    onClick={(e) => {
+                                                                        e.stopPropagation();
+                                                                        setEditTaskData(task);
+                                                                        setOpenMenuId(null);
+                                                                    }}
+                                                                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
+                                                                >
+                                                                    <Disc className="w-4 h-4" />
+                                                                    Edit
+                                                                </button>
+                                                            )}
                                                             <button
                                                                 onClick={async (e) => {
                                                                     e.stopPropagation();
@@ -460,4 +472,3 @@ export function LeadTaskTable({ completedOnly = false }: { completedOnly?: boole
         </div>
     );
 }
-

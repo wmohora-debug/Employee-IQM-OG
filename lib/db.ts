@@ -124,6 +124,25 @@ export const deleteTask = async (taskId: string) => {
     await deleteDoc(doc(db, "tasks", taskId));
 };
 
+export const updateTask = async (taskId: string, updates: Partial<Task>) => {
+    const ref = doc(db, "tasks", taskId);
+
+    // Fetch current task to check status
+    const snap = await getDoc(ref);
+    if (!snap.exists()) throw new Error("Task not found");
+    const currentTask = snap.data() as Task;
+
+    if (currentTask.status === 'completed' || currentTask.status === 'verified') {
+        throw new Error("Completed tasks cannot be edited.");
+    }
+
+    // Sanitize updates to remove undefined
+    const cleanUpdates = Object.fromEntries(
+        Object.entries(updates).filter(([_, v]) => v !== undefined)
+    );
+    await updateDoc(ref, cleanUpdates);
+};
+
 export const subscribeToTasks = (userId: string, role: string, department: string, callback: (tasks: Task[]) => void, completedOnly = false) => {
     let q;
     const tasksRef = collection(db, "tasks");
@@ -218,6 +237,12 @@ export const getEmployees = async (department?: string) => {
     } else {
         q = query(collection(db, "users"), where("role", "==", "employee"));
     }
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => doc.data() as User);
+};
+
+export const getLeads = async () => {
+    const q = query(collection(db, "users"), where("role", "==", "lead"));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => doc.data() as User);
 };
