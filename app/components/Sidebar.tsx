@@ -66,14 +66,16 @@ export function Sidebar({ role = 'lead' }: { role?: 'lead' | 'employee' | 'admin
 
     return (
         <>
-            {/* Mobile Toggle Button */}
-            <button
-                className="md:hidden fixed top-4 left-4 z-50 p-2 bg-iqm-primary text-white rounded-md shadow-lg hover:bg-iqm-primary/90 transition-colors"
-                onClick={toggleSidebar}
-                aria-label="Toggle Sidebar"
-            >
-                {isOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
-            </button>
+            {/* Mobile Toggle Button - Hidden when sidebar is open */}
+            {!isOpen && (
+                <button
+                    className="md:hidden fixed top-4 left-4 z-50 p-2 bg-iqm-primary text-white rounded-md shadow-lg hover:bg-iqm-primary/90 transition-colors"
+                    onClick={toggleSidebar}
+                    aria-label="Open Sidebar"
+                >
+                    <Menu className="w-6 h-6" />
+                </button>
+            )}
 
             {/* Overlay for mobile */}
             {isOpen && (
@@ -90,19 +92,30 @@ export function Sidebar({ role = 'lead' }: { role?: 'lead' | 'employee' | 'admin
             />
 
             <aside className={`
-                w-64 bg-iqm-sidebar text-white flex flex-col h-full min-h-screen fixed left-0 top-0 z-40 shadow-xl overflow-hidden transition-transform duration-300 ease-in-out
+                w-64 bg-iqm-sidebar text-white flex flex-col h-[100dvh] fixed left-0 top-0 z-40 shadow-xl overflow-hidden transition-transform duration-300 ease-in-out
                 ${isOpen ? 'translate-x-0' : '-translate-x-full'}
                 md:translate-x-0
             `}>
 
-                <div className="p-6 flex items-center gap-3 border-b border-white/10">
-                    <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shrink-0 shadow-md group cursor-pointer hover:scale-105 transition-transform">
-                        <IQMLogoFull className="w-7 h-7 text-iqm-primary" />
+                <div className="p-6 flex items-center justify-between border-b border-white/10 shrink-0">
+                    <div className="flex items-center gap-3">
+                        <div className="w-10 h-10 bg-white rounded-lg flex items-center justify-center shrink-0 shadow-md group cursor-pointer hover:scale-105 transition-transform">
+                            <IQMLogoFull className="w-7 h-7 text-iqm-primary" />
+                        </div>
+                        <h1 className="text-2xl font-bold tracking-tight">IQM</h1>
                     </div>
-                    <h1 className="text-2xl font-bold tracking-tight">IQM</h1>
+
+                    {/* Internal Close Button for Mobile */}
+                    <button
+                        className="md:hidden p-2 text-white/70 hover:text-white hover:bg-white/10 rounded-lg transition-all"
+                        onClick={() => setIsOpen(false)}
+                        aria-label="Close Sidebar"
+                    >
+                        <X className="w-6 h-6" />
+                    </button>
                 </div>
 
-                <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto">
+                <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto min-h-0">
                     {menuItems.map((item) => (
                         <Link
                             key={item.name}
@@ -116,7 +129,7 @@ export function Sidebar({ role = 'lead' }: { role?: 'lead' | 'employee' | 'admin
                     ))}
                 </nav>
 
-                <div className="p-4 border-t border-white/10 space-y-1">
+                <div className="p-4 border-t border-white/10 space-y-1 shrink-0 bg-iqm-sidebar">
                     <button
                         onClick={handleLogoutClick}
                         className="flex items-center gap-3 px-4 py-3 w-full rounded-xl text-white/80 hover:bg-red-500/20 hover:text-red-100 transition-all duration-200 active:scale-95 text-left text-sm font-medium group"

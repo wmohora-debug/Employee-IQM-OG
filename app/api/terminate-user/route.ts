@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getAdmin } from "@/lib/firebase-admin";
 
+
 export async function POST(req: NextRequest) {
     try {
         // Initialize Admin SDK Lazily
@@ -52,38 +53,99 @@ export async function POST(req: NextRequest) {
 
         console.log(`Terminating user ${targetUid} by ${callerUid}`);
 
-        // 3. Perform Deletion (Atomic-ish)
+        // 3. Perform Deletion (Cascade)
 
-        // A. Delete from Auth
-        await adminAuth.deleteUser(targetUid);
-
-        // B. Delete from Firestore (Users collection)
-        await adminDb.collection("users").doc(targetUid).delete();
-
-        // C. Clean up related collections
+        // START BATCH
         const batch = adminDb.batch();
 
-        // Delete valid tasks assigned to user
-        const tasksSnapshot = await adminDb.collection("tasks").where("assignedTo", "==", targetUid).get();
-        tasksSnapshot.docs.forEach((doc: any) => {
+        // A. Delete from Auth
+        try {
+            await adminAuth.deleteUser(targetUid);
+        } catch (err: any) {
+            console.warn("Auth user might already be deleted:", err.message);
+        }
+
+        // B. Delete from Firestore (Users collection)
+        const userRef = adminDb.collection("users").doc(targetUid);
+        batch.delete(userRef);
+
+        // C. Clean up Tasks
+        // 1. Assigned TO the user
+        const tasksAssignedTo = await adminDb.collection("tasks").where("assignedTo", "==", targetUid).get();
+        tasksAssignedTo.docs.forEach((doc: any) => batch.delete(doc.ref));
+
+        // 2. Assigned BY the user (Lead)
+        const tasksAssignedBy = await adminDb.collection("tasks").where("assignedBy", "==", targetUid).get();
+        tasksAssignedBy.docs.forEach((doc: any) => batch.delete(doc.ref));
+
+        // 3. Verified BY the user (Lead)
+        const tasksVerifiedBy = await adminDb.collection("tasks").where("verifiedBy", "==", targetUid).get();
+        tasksVerifiedBy.docs.forEach((doc: any) => batch.delete(doc.ref));
+
+        // 4. AssigneeIds Array Contains (Employee)
+        const tasksAssignee = await adminDb.collection("tasks").where("assigneeIds", "array-contains", targetUid).get();
+        tasksAssignee.docs.forEach((doc: any) => batch.delete(doc.ref));
+
+
+        // D. Clean up SVM Ratings & Recalculate Logic
+        const employeesToRecalculate = new Set<string>();
+
+        // 1. Ratings RECEIVED by the user (Delete them)
+        const svmReceived = await adminDb.collection("svm_ratings").where("employeeId", "==", targetUid).get();
+        svmReceived.docs.forEach((doc: any) => batch.delete(doc.ref));
+
+        // 2. Ratings GIVEN by the user (Delete them AND trigger recalc for affected employees)
+        const svmGiven = await adminDb.collection("svm_ratings").where("leadId", "==", targetUid).get();
+        svmGiven.docs.forEach((doc: any) => {
+            const data = doc.data();
+            if (data.employeeId) {
+                employeesToRecalculate.add(data.employeeId);
+            }
             batch.delete(doc.ref);
         });
 
-        // Delete SVM ratings
-        const svmSnapshot = await adminDb.collection("svm_ratings").where("ratedUser", "==", targetUid).get();
-        svmSnapshot.docs.forEach((doc: any) => {
-            batch.delete(doc.ref);
-        });
+        // E. Clean up User Skills
+        // 1. Owned by user
+        const skillsOwned = await adminDb.collection("user_skills").where("userId", "==", targetUid).get();
+        skillsOwned.docs.forEach((doc: any) => batch.delete(doc.ref));
 
-        // Delete Leaderboard stats (if separate docs exist, otherwise they are usually aggregations)
-        // Assuming leaderboard is computed or stored in users. Since user is deleted, it's gone.
-        // If there is an 'employee_stats' collection:
-        const statsRef = adminDb.collection("employee_stats").doc(targetUid);
-        batch.delete(statsRef);
+        // 2. Validated by user (Lead)
+        const skillsValidated = await adminDb.collection("user_skills").where("validatedBy", "==", targetUid).get();
+        skillsValidated.docs.forEach((doc: any) => batch.delete(doc.ref));
 
+        // F. Clean up Leaderboard/Stats if existing
+        // (Assuming standard users doc handles this, but if there are side-documents)
+        // await adminDb.collection("employee_stats").doc(targetUid).delete(); // If exists
+
+
+        // COMMIT DELETE BATCH
         await batch.commit();
 
-        return NextResponse.json({ success: true, message: "User terminated successfully" });
+        console.log("Cascade deletion complete. Starting recalculation...");
+
+        // 4. Post-Deletion Recalculation
+        // For each employee who lost a rating, we must recalculate their average
+        for (const empId of Array.from(employeesToRecalculate)) {
+            // Check if user still exists (might have been the one deleted, though unlikely given logic)
+            if (empId === targetUid) continue;
+
+            const ratingsSnap = await adminDb.collection("svm_ratings").where("employeeId", "==", empId).get();
+            const ratings = ratingsSnap.docs.map((d: any) => d.data().average);
+
+            let newSvmScore = 0;
+            if (ratings.length > 0) {
+                const sum = ratings.reduce((a: number, b: number) => a + b, 0);
+                newSvmScore = parseFloat((sum / ratings.length).toFixed(2));
+            }
+
+            await adminDb.collection("users").doc(empId).update({
+                svmScore: newSvmScore,
+                ratingCount: ratings.length
+            });
+            console.log(`Recalculated SVM for ${empId}: ${newSvmScore}`);
+        }
+
+        return NextResponse.json({ success: true, message: "User and all related data terminated successfully." });
 
     } catch (error: any) {
         console.error("Termination error:", error);
