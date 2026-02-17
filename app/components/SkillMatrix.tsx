@@ -36,7 +36,9 @@ const getSkillsByDepartment = (dept: string = "Development") => {
 };
 
 function EmployeeRatingRow({ employee, leadId }: { employee: User; leadId: string }) {
-    const skills = getSkillsByDepartment(employee.department);
+    const rawDept = employee.department;
+    const dept = (Array.isArray(rawDept) ? rawDept[0] : rawDept) || "Development";
+    const skills = getSkillsByDepartment(dept);
     const [ratings, setRatings] = useState<number[]>(new Array(skills.length).fill(0));
     const [status, setStatus] = useState<'idle' | 'saving' | 'saved'>('idle');
 
@@ -121,7 +123,8 @@ export function SkillMatrix({ isEditable = false }: { isEditable?: boolean }) {
         if (mode === 'rate' && user) {
             setLoading(true);
             // Filter employees by user's department
-            const dept = user.department || "Development";
+            const rawDept = user.department;
+            const dept = (Array.isArray(rawDept) ? rawDept[0] : rawDept) || "Development";
             getEmployees(dept).then(emps => {
                 setEmployees(emps);
                 setLoading(false);
@@ -132,7 +135,9 @@ export function SkillMatrix({ isEditable = false }: { isEditable?: boolean }) {
     if (!user) return null;
 
     // Use department of the lead (user) to determine table headers
-    const currentSkills = getSkillsByDepartment(user.department);
+    const rawUserDept = user.department;
+    const userDept = (Array.isArray(rawUserDept) ? rawUserDept[0] : rawUserDept) || "Development";
+    const currentSkills = getSkillsByDepartment(userDept);
 
     return (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden h-full flex flex-col">

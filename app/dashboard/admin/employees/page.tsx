@@ -1,5 +1,5 @@
 "use client";
-import { Sidebar } from "@/app/components/Sidebar";
+
 import { Header } from "@/app/components/Header";
 import { ExecutiveList } from "@/app/components/ExecutiveList";
 import { useEffect, useState } from "react";
@@ -55,7 +55,7 @@ export default function EmployeesPage() {
                 {departments.map(dept => {
                     const deptUsers = users.filter(u =>
                         dept === "Other"
-                            ? (!u.department || !["Development", "UX", "Social Media"].includes(u.department))
+                            ? (!u.department || (typeof u.department === 'string' && !["Development", "UX", "Social Media"].includes(u.department)))
                             : u.department === dept
                     );
 

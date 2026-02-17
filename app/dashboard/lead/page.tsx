@@ -23,7 +23,10 @@ export default function LeadDashboard() {
     useEffect(() => {
         if (!user || !user.department) return;
         // Subscribe to stats for user's department
-        const unsub = subscribeToLeadStats(user.uid, user.department, (updatedStats) => {
+        const rawDept = user.department;
+        const dept = (Array.isArray(rawDept) ? rawDept[0] : rawDept) || "Development";
+
+        const unsub = subscribeToLeadStats(user.uid, dept, (updatedStats) => {
             setStats(updatedStats);
         });
         return () => unsub();

@@ -39,11 +39,11 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                         const userData = snap.data() as User;
 
                         // MIGRATION / BACKFILL for Department
-                        if (!userData.department && !['admin', 'ceo'].includes(userData.role)) {
+                        if (!userData.department && !['admin', 'ceo', 'cco', 'coo'].includes(userData.role)) {
                             console.warn("User missing department, backfilling default 'Development'");
                             const updatedUser = { ...userData, department: 'Development', uid: firebaseUser.uid };
                             await setDoc(userRef, { department: 'Development' }, { merge: true });
-                            setUser(updatedUser);
+                            setUser(updatedUser as unknown as User);
                         } else {
                             setUser({ ...userData, uid: firebaseUser.uid });
                         }
@@ -65,9 +65,10 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                         let role: UserRole = "employee";
                         if (email.includes("suraj")) role = "lead";
                         if (email.includes("admin") || email.includes("hr")) role = "admin";
+                        if (email.includes("ceo")) role = "ceo";
+                        if (email.includes("cco")) role = "cco";
+                        if (email.includes("coo")) role = "coo";
                         // Auto-detect CEO for testing if needed, though usually manual.
-                        // For safety, let's not auto-assign CEO unless specific email.
-                        // Admin script creates CEO, so this block might not even run for him if created first.
 
                         const rawName = firebaseUser.displayName || email.split('@')[0];
                         const displayName = rawName.charAt(0).toUpperCase() + rawName.slice(1);
@@ -78,12 +79,20 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                             name: displayName,
                             role: role,
                             points: 0,
-                            // Admin/CEO has no department
-                            department: ['admin', 'ceo'].includes(role) ? undefined : 'Development'
                         };
 
+                        // Assign department only for non-executives
+                        if (!(["admin", "ceo", "cco", "coo"] as UserRole[]).includes(role)) {
+                            newUser.department = "Development";
+                        }
+
+                        // Sanitize undefined fields
+                        const userForDb = Object.fromEntries(
+                            Object.entries(newUser).filter(([_, v]) => v !== undefined)
+                        );
+
                         await setDoc(userRef, {
-                            ...newUser,
+                            ...userForDb,
                             createdAt: serverTimestamp(),
                             lastSeen: serverTimestamp()
                         });
