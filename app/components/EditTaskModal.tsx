@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from 'react';
-import { X, Save, Trash2, User as UserIcon, Loader2 } from 'lucide-react';
+import { X, User as UserIcon, Loader2 } from 'lucide-react';
 import { Task, User, getEmployees, getLeads, updateTask } from '@/lib/db';
 import { useAuth } from '@/app/context/AuthContext';
 import { Timestamp } from 'firebase/firestore';
@@ -67,7 +67,8 @@ export function EditTaskModal({ task, isOpen, onClose }: EditTaskModalProps) {
             setAvailableUsers(users);
         } else if (user.role === 'lead') {
             // If Lead editing -> Modules are assigned to Employees.
-            const dept = user.department || "Development";
+            const rawDept = user.department;
+            const dept = (Array.isArray(rawDept) ? rawDept[0] : rawDept) || "Development";
             users = await getEmployees(dept);
             setAvailableUsers(users);
         }

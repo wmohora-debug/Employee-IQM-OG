@@ -16,7 +16,11 @@ export function Leaderboard({ department }: { department?: string }) {
         // If not, use user.department (for Lead/Employee).
         // If user is Admin and no prop, department might be undefined -> shows all which is fallback, BUT admin page uses specific multiple tables.
 
-        const targetDept = department || user.department || undefined;
+        const userDept = user.department
+            ? (Array.isArray(user.department) ? user.department[0] : user.department)
+            : undefined;
+
+        const targetDept = department || userDept;
 
         const unsubscribe = subscribeToLeaderboard(targetDept, (users) => {
             // Sort by SVM Score (descending) - Client side sorting as well just in case

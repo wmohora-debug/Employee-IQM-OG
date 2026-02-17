@@ -39,7 +39,8 @@ export function CreateTaskModal({ isOpen, onClose }: CreateTaskModalProps) {
         const fetchEmps = async () => {
             if (!user) return;
             // If user is lead, filter by their department. If admin/other, maybe all (but this modal is for Leads)
-            const dept = user.department || "Development";
+            const rawDept = user.department;
+            const dept = (Array.isArray(rawDept) ? rawDept[0] : rawDept) || "Development";
             const emps = await getEmployees(dept);
             setEmployees(emps);
             setLoadingEmployees(false);
@@ -92,7 +93,7 @@ export function CreateTaskModal({ isOpen, onClose }: CreateTaskModalProps) {
                 assignedTo: modules[0].assignedTo,
                 assigneeIds: allAssignees,
                 assignedBy: user?.uid || '',
-                department: user?.department || 'Development', // Save Department
+                department: (Array.isArray(user?.department) ? user.department[0] : user?.department) || 'Development', // Save Department
                 status: 'pending',
                 priority,
                 dueDate: new Date(dueDate),
