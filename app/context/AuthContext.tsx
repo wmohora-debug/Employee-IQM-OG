@@ -54,6 +54,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                             if (userData.role === 'lead') router.push('/dashboard/lead');
                             else if (userData.role === 'admin') router.push('/dashboard/admin/employees');
                             else if (userData.role === 'ceo') router.push('/dashboard/ceo/employees');
+                            else if (userData.role === 'cco') router.push('/dashboard/cco/employees');
+                            else if (userData.role === 'coo') router.push('/dashboard/coo/employees');
                             else router.push('/dashboard/employee');
                         }
                     } else {
@@ -89,6 +91,9 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
                         setUser(newUser);
                         if (role === 'lead') router.push('/dashboard/lead');
                         else if (role === 'admin') router.push('/dashboard/admin/employees');
+                        else if (role === 'ceo') router.push('/dashboard/ceo/employees');
+                        else if (role === 'cco') router.push('/dashboard/cco/employees');
+                        else if (role === 'coo') router.push('/dashboard/coo/employees');
                         else router.push('/dashboard/employee');
                     }
                 } catch (error) {

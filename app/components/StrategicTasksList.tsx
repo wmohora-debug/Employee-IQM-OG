@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { subscribeToAllTasks, subscribeToUsers, Task, User, deleteTask } from "@/lib/db";
+import { useAuth } from "@/app/context/AuthContext";
 import { ExpandableText } from "./ExpandableText";
 import { Copy, Trash2, Calendar, CheckCircle2, Clock, MoreHorizontal, Pencil } from "lucide-react";
 import { EditTaskModal } from "./EditTaskModal";
@@ -12,12 +13,17 @@ export function StrategicTasksList() {
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
     const [editTaskData, setEditTaskData] = useState<Task | null>(null);
 
+    const { user } = useAuth(); // Get current user
+
     // Subscribe to tasks
     useEffect(() => {
+        if (!user) return;
+
         const unsub = subscribeToAllTasks((allTasks) => {
-            // Filter only CEO tasks (strategic)
-            const strategicTasks = allTasks.filter(t => t.createdByRole === 'ceo');
-            setTasks(strategicTasks);
+            // Filter tasks assigned by the logged-in Executive (CEO/CCO/COO)
+            // This ensures strict data segregation as requested.
+            const myStrategicTasks = allTasks.filter(t => t.assignedBy === user.uid);
+            setTasks(myStrategicTasks);
         });
 
         const unsubUsers = subscribeToUsers(undefined, (users) => {

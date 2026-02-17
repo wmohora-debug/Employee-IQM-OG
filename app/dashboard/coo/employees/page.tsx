@@ -8,19 +8,19 @@ import { Users, Shield, User as UserIcon, Briefcase } from "lucide-react";
 import { useAuth } from "@/app/context/AuthContext";
 import { useRouter } from "next/navigation";
 
-export default function CEOEmployeesPage() {
+export default function COOEmployeesPage() {
     const { user, loading } = useAuth();
     const router = useRouter();
     const [users, setUsers] = useState<User[]>([]);
 
     useEffect(() => {
-        if (!loading && user?.role !== 'ceo') {
+        if (!loading && user?.role !== 'coo') {
             router.push('/');
         }
     }, [user, loading, router]);
 
     useEffect(() => {
-        // CEO needs to see ALL users, so we pass undefined for department filter
+        // COO needs to see ALL users, so we pass undefined for department filter
         const unsub = subscribeToUsers(undefined, (updatedUsers) => {
             setUsers(updatedUsers);
         });
@@ -37,12 +37,11 @@ export default function CEOEmployeesPage() {
         );
     }
 
-    if (user?.role !== 'ceo') return null;
+    if (user?.role !== 'coo') return null;
 
     return (
         <>
             <Header title="Employees Overview" />
-
             <main className="p-4 md:ml-64 md:p-8 space-y-12 animate-in fade-in duration-500 pb-20">
                 {/* Header Section */}
                 <div>
@@ -80,7 +79,6 @@ export default function CEOEmployeesPage() {
                                     </div>
                                 </div>
                             </div>
-
                             <div className="p-6 space-y-8">
                                 {/* Leads Section */}
                                 {leads.length > 0 && (
@@ -115,7 +113,6 @@ export default function CEOEmployeesPage() {
                                         </table>
                                     </div>
                                 )}
-
                                 {/* Employees Section */}
                                 <div className="bg-gray-50/50 rounded-xl border border-gray-100 overflow-hidden">
                                     <div className="px-4 py-3 border-b border-gray-100 bg-white flex items-center gap-2">

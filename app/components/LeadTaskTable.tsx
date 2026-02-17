@@ -27,8 +27,8 @@ export function LeadTaskTable({ completedOnly = false }: { completedOnly?: boole
 
         // Subscribe to tasks as Lead (sees all in department)
         const unsubscribe = subscribeToTasks(user.uid, "lead", dept, (updatedTasks) => {
-            // Filter out CEO tasks (Operational tasks only)
-            const operationalTasks = updatedTasks.filter(t => t.createdByRole !== 'ceo');
+            // Filter out Executive Strategic tasks (Operational tasks only)
+            const operationalTasks = updatedTasks.filter(t => !['ceo', 'cco', 'coo'].includes(t.createdByRole || ''));
             setTasks(operationalTasks);
         }, completedOnly);
         return () => unsubscribe();
