@@ -1,6 +1,7 @@
 "use client";
 import { Sidebar } from "@/app/components/Sidebar";
 import { Header } from "@/app/components/Header";
+import { ExecutiveList } from "@/app/components/ExecutiveList";
 import { useEffect, useState } from "react";
 import { subscribeToUsers, User } from "@/lib/db";
 import { Users, Shield, User as UserIcon, Briefcase } from "lucide-react";
@@ -48,6 +49,8 @@ export default function EmployeesPage() {
                     <h1 className="text-2xl font-bold text-gray-800">Team Directory</h1>
                     <p className="text-gray-500 mt-1">View and manage all active Leads and Employees organized by department.</p>
                 </div>
+
+                <ExecutiveList />
 
                 {departments.map(dept => {
                     const deptUsers = users.filter(u =>

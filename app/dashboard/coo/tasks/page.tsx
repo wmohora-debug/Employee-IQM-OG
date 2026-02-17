@@ -12,7 +12,7 @@ import {
 import { useAuth } from "@/app/context/AuthContext";
 import { useRouter } from "next/navigation";
 
-export default function CEOTasksPage() {
+export default function COOTasksPage() {
     const { user, loading } = useAuth();
     const router = useRouter();
     const [tasks, setTasks] = useState<Task[]>([]);
@@ -21,14 +21,14 @@ export default function CEOTasksPage() {
 
     // Auth Check
     useEffect(() => {
-        if (!loading && user?.role !== 'ceo') {
+        if (!loading && user?.role !== 'coo') {
             router.push('/');
         }
     }, [user, loading, router]);
 
     // Data Subscription
     useEffect(() => {
-        if (loading || user?.role !== 'ceo') return;
+        if (loading || user?.role !== 'coo') return;
 
         const unsubTasks = subscribeToAllTasks((updatedTasks) => {
             setTasks(updatedTasks);
@@ -50,7 +50,7 @@ export default function CEOTasksPage() {
 
     // Derived Stats for Workload
     const deptStats = ["Development", "UX", "Social Media"].map(dept => {
-        // Active tasks, excluding CEO/CCO/COO assigned (Operational only)
+        // Exclude tasks created by coo (strategic) from operational view
         const deptTasks = tasks.filter(t => t.department === dept && t.status !== 'verified' && !['ceo', 'cco', 'coo'].includes(t.createdByRole || ''));
         return {
             name: dept,
@@ -61,7 +61,7 @@ export default function CEOTasksPage() {
         };
     });
 
-    // Group Tasks (Excluding ALL Strategic Tasks: CEO, CCO, COO) for Operational Overview
+    // Group Tasks (Excluding ALL Strategic Tasks: CEO, CCO, COO)
     const groupedTasks = {
         Development: tasks.filter(t => t.department === 'Development' && !['ceo', 'cco', 'coo'].includes(t.createdByRole || '')),
         UX: tasks.filter(t => t.department === 'UX' && !['ceo', 'cco', 'coo'].includes(t.createdByRole || '')),
@@ -76,11 +76,11 @@ export default function CEOTasksPage() {
         );
     }
 
-    if (user?.role !== 'ceo') return null;
+    if (user?.role !== 'coo') return null;
 
     return (
         <>
-            <Header title="Tasks Overview" />
+            <Header title="Tasks Overview (COO)" />
             <main className="p-4 md:ml-64 md:p-8 space-y-8 pb-20 animate-in fade-in duration-500">
 
                 {/* 1. Department Workload Chart */}
@@ -193,112 +193,6 @@ export default function CEOTasksPage() {
                             </div>
                         );
                     })}
-                </section>
-
-                {/* 3. Executive Tasks (CCO & COO) */}
-                <section className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                    <div className="bg-gradient-to-r from-purple-50 to-white px-6 py-4 border-b border-gray-100 flex items-center justify-between">
-                        <div className="flex items-center gap-2">
-                            <Layers className="w-5 h-5 text-purple-600" />
-                            <h2 className="text-lg font-bold text-gray-800">Executive Tasks (CCO & COO)</h2>
-                        </div>
-                        <span className="text-xs font-semibold bg-purple-100 text-purple-700 px-3 py-1 rounded-full border border-purple-200">
-                            Strategic Overview
-                        </span>
-                    </div>
-
-                    <div className="overflow-x-auto">
-                        <table className="w-full text-left text-sm min-w-[800px]">
-                            <thead className="bg-gray-50 text-gray-500 font-medium border-b border-gray-100">
-                                <tr>
-                                    <th className="px-6 py-3 w-1/4">Task Name</th>
-                                    <th className="px-6 py-3 w-1/5">Assigned To</th>
-                                    <th className="px-6 py-3 w-1/6">Created By</th>
-                                    <th className="px-6 py-3 w-1/6">Department</th>
-                                    <th className="px-6 py-3 w-1/6 text-right">Status / Date</th>
-                                </tr>
-                            </thead>
-                            <tbody className="divide-y divide-gray-50">
-                                {tasks.filter(t => ['cco', 'coo'].includes(t.createdByRole || '')).length === 0 ? (
-                                    <tr>
-                                        <td colSpan={5} className="px-6 py-8 text-center text-gray-400 italic">
-                                            No tasks assigned by CCO or COO found.
-                                        </td>
-                                    </tr>
-                                ) : (
-                                    tasks.filter(t => ['cco', 'coo'].includes(t.createdByRole || '')).map(task => {
-                                        // Resolve Names
-                                        const assigneeNames = task.assigneeIds?.map(id => usersMap[id]?.name || "Unknown").join(", ") || "Unassigned";
-                                        const creatorName = usersMap[task.createdByUserId || '']?.name || task.createdByRole?.toUpperCase() || "Executive";
-
-                                        // Status & Date
-                                        const isCompleted = task.status === 'completed' || task.status === 'verified';
-                                        const dateObj = isCompleted ? task.completedAt : task.dueDate;
-
-                                        // Safe date formatting
-                                        let dateLabel = "N/A";
-                                        if (dateObj) {
-                                            if (typeof (dateObj as any).toDate === 'function') {
-                                                dateLabel = (dateObj as any).toDate().toLocaleDateString();
-                                            } else {
-                                                const d = new Date(dateObj as any);
-                                                if (!isNaN(d.getTime())) {
-                                                    dateLabel = d.toLocaleDateString();
-                                                }
-                                            }
-                                        }
-
-                                        return (
-                                            <tr key={task.id} className="hover:bg-purple-50/10 transition-colors">
-                                                <td className="px-6 py-4 font-medium text-gray-900 border-l-4 border-transparent hover:border-purple-500 transition-all">
-                                                    {task.title}
-                                                    {task.priority === 'high' && (
-                                                        <span className="ml-2 text-[10px] bg-red-100 text-red-700 px-1.5 py-0.5 rounded-full uppercase tracking-wide">High</span>
-                                                    )}
-                                                </td>
-                                                <td className="px-6 py-4 text-gray-600">
-                                                    <div className="flex items-center gap-2">
-                                                        <div className="w-6 h-6 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center text-xs font-bold ring-2 ring-white shadow-sm">
-                                                            {assigneeNames.charAt(0)}
-                                                        </div>
-                                                        <span className="truncate max-w-[150px]" title={assigneeNames}>{assigneeNames}</span>
-                                                    </div>
-                                                </td>
-                                                <td className="px-6 py-4">
-                                                    <span className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded text-xs font-bold uppercase tracking-wide border
-                                                        ${task.createdByRole === 'cco' ? 'bg-indigo-50 text-indigo-700 border-indigo-100' : 'bg-blue-50 text-blue-700 border-blue-100'}
-                                                    `}>
-                                                        {task.createdByRole?.toUpperCase()}
-                                                    </span>
-                                                </td>
-                                                <td className="px-6 py-4 text-gray-500">
-                                                    {task.department}
-                                                </td>
-                                                <td className="px-6 py-4 text-right">
-                                                    <div className="flex flex-col items-end">
-                                                        <span className={`inline-flex items-center gap-1.5 text-xs font-medium mb-1
-                                                            ${isCompleted ? 'text-green-600' : 'text-orange-600'}
-                                                        `}>
-                                                            {isCompleted ? (
-                                                                <>
-                                                                    <CheckCircle className="w-3 h-3" /> Completed
-                                                                </>
-                                                            ) : (
-                                                                <>Pending</>
-                                                            )}
-                                                        </span>
-                                                        <span className="text-[10px] text-gray-400 font-mono">
-                                                            {isCompleted ? "Completed: " : "Due: "}{dateLabel}
-                                                        </span>
-                                                    </div>
-                                                </td>
-                                            </tr>
-                                        );
-                                    })
-                                )}
-                            </tbody>
-                        </table>
-                    </div>
                 </section>
             </main>
         </>

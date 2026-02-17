@@ -48,9 +48,9 @@ export function CeoAssignedTasksList() {
                     <CheckSquare className="w-5 h-5" />
                 </div>
                 <div>
-                    <h3 className="text-lg font-bold text-gray-800">Assigned by CEO</h3>
+                    <h3 className="text-lg font-bold text-gray-800">Executive Strategic Tasks</h3>
                     <p className="text-xs text-purple-600 font-medium bg-purple-50 inline-block px-2 py-0.5 rounded-full mt-1 border border-purple-100">
-                        Strategic Priority
+                        Top Priority Directives
                     </p>
                 </div>
             </div>
@@ -60,7 +60,12 @@ export function CeoAssignedTasksList() {
                     <div key={task.id} className="p-6 hover:bg-purple-50/10 transition-colors flex flex-col md:flex-row gap-4 md:items-start group">
                         <div className="flex-1 space-y-2">
                             <div className="flex items-start justify-between">
-                                <h4 className="font-bold text-gray-900 text-base">{task.title}</h4>
+                                <div className="flex flex-col">
+                                    <h4 className="font-bold text-gray-900 text-base">{task.title}</h4>
+                                    <span className="text-[10px] font-bold uppercase tracking-wider text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded-full border border-indigo-100 w-fit mt-1">
+                                        Assigned by {task.createdByRole?.toUpperCase() || "CEO"}
+                                    </span>
+                                </div>
                                 <span className="md:hidden text-xs font-mono text-gray-400 bg-gray-50 px-2 py-1 rounded-md border border-gray-100 whitespace-nowrap ml-2">
                                     Due: {task.dueDate ? new Date((task.dueDate as any).seconds * 1000).toLocaleDateString() : 'N/A'}
                                 </span>

@@ -3,9 +3,10 @@ import { Sidebar } from "@/app/components/Sidebar";
 import { Header } from "@/app/components/Header";
 import { useState } from "react";
 import { syncUser, UserRole } from "@/lib/db";
-import { Users, Save, CheckCircle, UserMinus, AlertTriangle, Loader2 } from "lucide-react";
+import { Users, Save, CheckCircle, UserMinus, AlertTriangle, Loader2, KeyRound } from "lucide-react";
 import { collection, query, where, getDocs } from "firebase/firestore";
 import { db, auth } from "@/lib/firebase";
+import { signInWithEmailAndPassword, EmailAuthProvider, reauthenticateWithCredential } from "firebase/auth";
 
 export default function AdminUserManagementPage() {
     const [email, setEmail] = useState("");
@@ -52,7 +53,7 @@ export default function AdminUserManagementPage() {
         <>
             <Header title="User Management" />
 
-            <main className="p-4 md:ml-64 md:p-8 space-y-8">
+            <main className="p-4 md:ml-64 md:p-8 space-y-8 pb-20">
                 {/* Onboard Section */}
                 <div className="max-w-2xl mx-auto">
                     <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-8">
@@ -162,6 +163,10 @@ export default function AdminUserManagementPage() {
 
                 {/* Terminate Section */}
                 <TerminateUserSection />
+
+                {/* Change Password Section */}
+                <ChangePasswordSection />
+
             </main>
         </>
     );
@@ -374,3 +379,192 @@ function TerminateUserSection() {
     );
 }
 
+function ChangePasswordSection() {
+    const [email, setEmail] = useState("");
+    const [initialPassword, setInitialPassword] = useState(""); // Admin's "Initial" / Authorization Password
+    const [newPassword, setNewPassword] = useState("");
+    const [status, setStatus] = useState<'idle' | 'loading' | 'success'>('idle');
+    const [isConfirmOpen, setIsConfirmOpen] = useState(false);
+
+    // Initial check (Client Side) before opening modal
+    const handlePreSubmit = (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!email || !initialPassword || !newPassword) {
+            alert("All fields are required.");
+            return;
+        }
+        if (newPassword.length < 6) {
+            alert("New password must be at least 6 characters.");
+            return;
+        }
+
+        // Open Confirmation Dialog
+        setIsConfirmOpen(true);
+    };
+
+    const handleExecuteChange = async () => {
+        setStatus('loading');
+        try {
+            // STEP 1: VALIDATE Admin Credentials
+            // We use reauthenticateWithCredential to verify the current Admin knows their password
+            // without expecting a full sign-in flow that might disrupt the session.
+            const user = auth.currentUser;
+            if (!user || !user.email) {
+                throw new Error("Admin session invalid. Please refresh.");
+            }
+
+            try {
+                const credential = EmailAuthProvider.credential(user.email, initialPassword);
+                await reauthenticateWithCredential(user, credential);
+            } catch (e: any) {
+                console.error("Re-auth failed:", e);
+                if (e.code === 'auth/wrong-password') {
+                    throw new Error("The Admin Password you entered is incorrect. Please try again.");
+                }
+                throw new Error("Authorization failed: " + e.message);
+            }
+
+            // STEP 2: Call API to Update Target User Password
+            const token = await user.getIdToken();
+            const res = await fetch('/api/change-password', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${token}`
+                },
+                body: JSON.stringify({ email, newPassword })
+            });
+
+            const data = await res.json().catch(() => null);
+            if (!res.ok) throw new Error(data?.error || "Failed to update password");
+
+            setStatus('success');
+            setEmail("");
+            setInitialPassword("");
+            setNewPassword("");
+
+            setTimeout(() => {
+                setStatus('idle');
+                setIsConfirmOpen(false);
+            }, 2000);
+
+        } catch (error: any) {
+            console.error(error);
+            alert(error.message);
+            setStatus('idle');
+            setIsConfirmOpen(false);
+        }
+    };
+
+    return (
+        <div className="max-w-2xl mx-auto">
+            <div className="bg-white rounded-2xl shadow-sm border border-orange-100 p-8">
+                <div className="flex items-center gap-3 mb-6 pb-6 border-b border-orange-50">
+                    <div className="w-12 h-12 bg-orange-50 rounded-full flex items-center justify-center text-orange-600">
+                        <KeyRound className="w-6 h-6" />
+                    </div>
+                    <div>
+                        <h2 className="text-xl font-bold text-gray-800">Change Password</h2>
+                        <p className="text-sm text-gray-500">Reset a user's password securely.</p>
+                    </div>
+                </div>
+
+                <form onSubmit={handlePreSubmit} className="space-y-6">
+                    <div className="space-y-4">
+                        <div>
+                            <label className="block text-sm font-semibold text-gray-700 mb-2">Email Address</label>
+                            <input
+                                type="email"
+                                required
+                                value={email}
+                                onChange={(e) => setEmail(e.target.value)}
+                                placeholder="Target user email..."
+                                className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all"
+                            />
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">Verify Admin Password</label>
+                                <input
+                                    type="password"
+                                    required
+                                    value={initialPassword}
+                                    onChange={(e) => setInitialPassword(e.target.value)}
+                                    placeholder="Verify Admin Password"
+                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all"
+                                    title="Enter YOUR admin password to authorize this change"
+                                />
+                                <p className="text-[10px] text-gray-400 mt-1">Authorize with YOUR password.</p>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-semibold text-gray-700 mb-2">New Password</label>
+                                <input
+                                    type="text"
+                                    required
+                                    value={newPassword}
+                                    onChange={(e) => setNewPassword(e.target.value)}
+                                    placeholder="Set New Password"
+                                    className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-orange-500/20 focus:border-orange-500 outline-none transition-all font-mono text-sm"
+                                />
+                            </div>
+                        </div>
+                    </div>
+
+                    <div className="pt-4">
+                        <button
+                            type="submit"
+                            disabled={status === 'loading'}
+                            className="w-full py-4 rounded-xl bg-gray-900 text-white font-bold hover:bg-black transition-all shadow-md active:scale-95 flex items-center justify-center gap-2"
+                        >
+                            <KeyRound className="w-5 h-5" />
+                            Change Password
+                        </button>
+                    </div>
+                </form>
+
+                {/* Confirmation Modal */}
+                {isConfirmOpen && (
+                    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
+                        <div className="bg-white rounded-2xl max-w-sm w-full p-8 shadow-2xl animate-in zoom-in-95 duration-200">
+                            {status === 'success' ? (
+                                <div className="text-center py-4">
+                                    <div className="w-16 h-16 bg-green-100 rounded-full flex items-center justify-center text-green-600 mx-auto mb-4 animate-in zoom-in duration-300">
+                                        <CheckCircle className="w-8 h-8" />
+                                    </div>
+                                    <h3 className="text-xl font-bold text-gray-900 mb-2">Success</h3>
+                                    <p className="text-gray-500">Password has been updated.</p>
+                                </div>
+                            ) : (
+                                <>
+                                    <h3 className="text-xl font-bold text-gray-900 mb-2">Confirm Password Change</h3>
+                                    <p className="text-gray-500 mb-6 text-sm">
+                                        Are you sure you want to change this user's password?
+                                    </p>
+
+                                    <div className="space-y-3">
+                                        <button
+                                            onClick={handleExecuteChange}
+                                            disabled={status === 'loading'}
+                                            className="w-full py-3 rounded-xl bg-orange-600 hover:bg-orange-700 text-white font-bold transition-all flex items-center justify-center gap-2"
+                                        >
+                                            {status === 'loading' ? <Loader2 className="w-4 h-4 animate-spin" /> : null}
+                                            Yes, Change Password
+                                        </button>
+                                        <button
+                                            onClick={() => setIsConfirmOpen(false)}
+                                            disabled={status === 'loading'}
+                                            className="w-full py-3 rounded-xl bg-gray-100 hover:bg-gray-200 text-gray-700 font-bold transition-all"
+                                        >
+                                            Cancel
+                                        </button>
+                                    </div>
+                                </>
+                            )}
+                        </div>
+                    </div>
+                )}
+            </div>
+        </div>
+    );
+}

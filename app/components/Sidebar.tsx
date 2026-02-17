@@ -8,7 +8,7 @@ import { useState } from "react";
 import { LogoutModal } from "./LogoutModal";
 
 
-export function Sidebar({ role = 'lead' }: { role?: 'lead' | 'employee' | 'admin' | 'ceo' }) {
+export function Sidebar({ role = 'lead' }: { role?: 'lead' | 'employee' | 'admin' | 'ceo' | 'cco' | 'coo' }) {
     const { logout } = useAuth();
     const router = useRouter();
     const [isOpen, setIsOpen] = useState(false);
@@ -44,6 +44,22 @@ export function Sidebar({ role = 'lead' }: { role?: 'lead' | 'employee' | 'admin
             { name: 'Employees', icon: Users, href: `/dashboard/ceo/employees` },
             { name: 'Tasks Overview', icon: CheckSquare, href: `/dashboard/ceo/tasks` },
             { name: 'Strategic Tasks', icon: BarChart2, href: `/dashboard/ceo/strategic-tasks` },
+        ] : []),
+
+        // CCO Role: Identical to CEO
+        ...(role === 'cco' ? [
+            { name: 'Leaderboard', icon: Award, href: `/dashboard/cco/leaderboard` },
+            { name: 'Employees', icon: Users, href: `/dashboard/cco/employees` },
+            { name: 'Tasks Overview', icon: CheckSquare, href: `/dashboard/cco/tasks` },
+            { name: 'Strategic Tasks', icon: BarChart2, href: `/dashboard/cco/strategic-tasks` },
+        ] : []),
+
+        // COO Role: Identical to CEO
+        ...(role === 'coo' ? [
+            { name: 'Leaderboard', icon: Award, href: `/dashboard/coo/leaderboard` },
+            { name: 'Employees', icon: Users, href: `/dashboard/coo/employees` },
+            { name: 'Tasks Overview', icon: CheckSquare, href: `/dashboard/coo/tasks` },
+            { name: 'Strategic Tasks', icon: BarChart2, href: `/dashboard/coo/strategic-tasks` },
         ] : []),
 
         // Lead Role: Dashboard, Tasks, Completed, Skills, Leaderboard (NO User Management)

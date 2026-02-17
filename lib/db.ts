@@ -19,7 +19,7 @@ import {
 import { ref } from "firebase/storage";
 
 // --- Types ---
-export type UserRole = 'lead' | 'employee' | 'admin' | 'ceo';
+export type UserRole = 'lead' | 'employee' | 'admin' | 'ceo' | 'cco' | 'coo';
 
 export interface User {
     uid: string;
@@ -31,7 +31,7 @@ export interface User {
     password?: string;
     svmScore?: number;
     ratingCount?: number;
-    department?: string; // Optional for Admin, Required for others (enforced by logic)
+    department?: string | string[]; // Can be array for Executives if needed, but per request "No department"
 }
 
 export interface TaskModule {
@@ -57,7 +57,8 @@ export interface Task {
     description: string;
     assignedTo?: string; // Legacy/Fallback
     assignedBy: string;
-    createdByRole?: string; // New: To identify CEO tasks
+    createdByRole?: string; // New: To identify CEO/CCO/COO tasks
+    createdByUserId?: string; // New: To identify creator for visibility filtering
     status: 'pending' | 'in-progress' | 'submitted' | 'verified' | 'completed'; // Added completed for CEO tasks
     priority: 'low' | 'medium' | 'high';
     dueDate: Date | Timestamp;
@@ -206,7 +207,7 @@ export const subscribeToCeoTasks = (leadId: string, callback: (tasks: Task[]) =>
     const qSimple = query(
         collection(db, "tasks"),
         where("assignedTo", "==", leadId),
-        where("createdByRole", "==", "ceo"),
+        where("createdByRole", "in", ["ceo", "cco", "coo"]),
         orderBy("createdAt", "desc") // We'll sort by date
     );
 

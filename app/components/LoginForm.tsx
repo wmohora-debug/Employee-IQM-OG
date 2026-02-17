@@ -1,12 +1,13 @@
 "use client";
 import { useState } from "react";
-import { Lock, Mail, ArrowRight, Loader2, AlertCircle } from "lucide-react";
+import { Lock, Mail, ArrowRight, Loader2, AlertCircle, Eye, EyeOff } from "lucide-react";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 
 export function LoginForm() {
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState<string | null>(null);
+    const [showPassword, setShowPassword] = useState(false);
     const [formData, setFormData] = useState({
         username: "",
         password: ""
@@ -104,18 +105,22 @@ export function LoginForm() {
                         <label className="block text-xs font-medium text-gray-700 uppercase tracking-wider">Password</label>
                         <div className="relative group">
                             <input
-                                type="password"
+                                type={showPassword ? "text" : "password"}
                                 required
                                 className="block w-full px-4 py-2.5 bg-white border border-gray-200 rounded-lg text-gray-900 text-sm placeholder-gray-400
                                          focus:outline-none focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 
-                                         transition-all duration-200 ease-in-out hover:border-gray-300"
+                                         transition-all duration-200 ease-in-out hover:border-gray-300 pr-10"
                                 placeholder="••••••••"
                                 value={formData.password}
                                 onChange={(e) => setFormData({ ...formData, password: e.target.value })}
                             />
-                            <div className="absolute inset-y-0 right-0 pr-3 flex items-center pointer-events-none text-gray-400 group-focus-within:text-indigo-500 transition-colors">
-                                <Lock className="h-4 w-4" />
-                            </div>
+                            <button
+                                type="button"
+                                onClick={() => setShowPassword(!showPassword)}
+                                className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-400 hover:text-gray-600 focus:outline-none transition-colors"
+                            >
+                                {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </button>
                         </div>
                     </div>
 
