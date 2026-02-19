@@ -1,7 +1,7 @@
 "use client";
 import { useState, useEffect } from 'react';
 import { X, User as UserIcon, Loader2 } from 'lucide-react';
-import { Task, User, getEmployees, getLeads, updateTask } from '@/lib/db';
+import { Task, User, updateTask } from '@/lib/db';
 import { useAuth } from '@/app/context/AuthContext';
 import { Timestamp } from 'firebase/firestore';
 
@@ -23,12 +23,8 @@ export function EditTaskModal({ task, isOpen, onClose }: EditTaskModalProps) {
     // Modules (For Leads)
     const [modules, setModules] = useState<Task['modules']>([]);
 
-    // Assigned Lead (For CEO)
-    const [assignedTo, setAssignedTo] = useState('');
-
     // Data Loading
     const [loading, setLoading] = useState(false);
-    const [availableUsers, setAvailableUsers] = useState<User[]>([]); // Leads (for CEO) or Employees (for Lead)
 
     useEffect(() => {
         if (isOpen && task) {
@@ -48,31 +44,10 @@ export function EditTaskModal({ task, isOpen, onClose }: EditTaskModalProps) {
 
             // Modules
             setModules(task.modules ? [...task.modules] : []);
-
-            // Assigned To
-            setAssignedTo(task.assignedTo || '');
-
-            // Load Users based on role context
-            loadRelevantUsers();
         }
     }, [isOpen, task, user]);
 
-    const loadRelevantUsers = async () => {
-        if (!user) return;
 
-        let users: User[] = [];
-        // If CEO editing -> Needs list of LEADS
-        if (user.role === 'ceo') {
-            users = await getLeads();
-            setAvailableUsers(users);
-        } else if (user.role === 'lead') {
-            // If Lead editing -> Modules are assigned to Employees.
-            const rawDept = user.department;
-            const dept = (Array.isArray(rawDept) ? rawDept[0] : rawDept) || "Development";
-            users = await getEmployees(dept);
-            setAvailableUsers(users);
-        }
-    };
 
     const handleSave = async () => {
         if (!task || !user) return;
@@ -107,11 +82,7 @@ export function EditTaskModal({ task, isOpen, onClose }: EditTaskModalProps) {
                 }
             }
 
-            if (user.role === 'ceo') {
-                if (assignedTo !== task.assignedTo) {
-                    updates.assignedTo = assignedTo;
-                }
-            }
+
 
             if (Object.keys(updates).length > 0) {
                 await updateTask(task.id!, updates);
@@ -137,6 +108,7 @@ export function EditTaskModal({ task, isOpen, onClose }: EditTaskModalProps) {
 
     const isLead = user?.role === 'lead';
     const isCEO = user?.role === 'ceo';
+    const isExecutiveTask = task.taskType === 'executive';
 
     return (
         <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/50 backdrop-blur-sm p-4 animate-in fade-in duration-200">
@@ -204,24 +176,7 @@ export function EditTaskModal({ task, isOpen, onClose }: EditTaskModalProps) {
                                 </div>
                             )}
 
-                            {isCEO && (
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1">Assigned Lead</label>
-                                    <div className="relative">
-                                        <UserIcon className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                                        <select
-                                            className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg focus:ring-2 focus:ring-iqm-primary/20 focus:border-iqm-primary outline-none transition-all"
-                                            value={assignedTo}
-                                            onChange={e => setAssignedTo(e.target.value)}
-                                        >
-                                            <option value="" disabled>Select Lead...</option>
-                                            {availableUsers.map(u => (
-                                                <option key={u.uid} value={u.uid}>{u.name} ({u.department})</option>
-                                            ))}
-                                        </select>
-                                    </div>
-                                </div>
-                            )}
+                            {/* Reassignment removed for CEO as per requirements */}
                         </div>
                     </div>
 

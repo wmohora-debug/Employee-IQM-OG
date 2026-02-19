@@ -22,13 +22,13 @@ export function ExecutiveList() {
 
     return (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden mt-8">
-            <div className="bg-gray-900 px-6 py-4 border-b border-gray-800 flex items-center gap-3">
-                <div className="w-10 h-10 bg-gray-800 rounded-xl flex items-center justify-center text-gray-200 shadow-sm border border-gray-700">
+            <div className="bg-gray-50/50 px-6 py-4 border-b border-gray-100 flex items-center gap-3">
+                <div className="w-10 h-10 bg-white rounded-xl flex items-center justify-center text-gray-600 shadow-sm border border-gray-200">
                     <ShieldCheck className="w-5 h-5" />
                 </div>
                 <div>
-                    <h2 className="text-xl font-bold text-white">Executive Team</h2>
-                    <p className="text-sm text-gray-400 font-medium">Leadership & Administration</p>
+                    <h2 className="text-xl font-bold text-gray-800">Executive Team</h2>
+                    <p className="text-sm text-gray-500 font-medium">Leadership & Administration</p>
                 </div>
             </div>
 

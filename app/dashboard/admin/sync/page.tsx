@@ -515,7 +515,7 @@ function ChangePasswordSection() {
                         <button
                             type="submit"
                             disabled={status === 'loading'}
-                            className="w-full py-4 rounded-xl bg-gray-900 text-white font-bold hover:bg-black transition-all shadow-md active:scale-95 flex items-center justify-center gap-2"
+                            className="w-full py-4 rounded-xl bg-iqm-primary text-white font-bold hover:bg-iqm-sidebar transition-all shadow-md active:scale-95 flex items-center justify-center gap-2"
                         >
                             <KeyRound className="w-5 h-5" />
                             Change Password

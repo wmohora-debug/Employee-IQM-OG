@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { useAuth } from "@/app/context/AuthContext";
 import { useRouter } from "next/navigation";
+import { CeoAssignedTasksList } from "@/app/components/CeoAssignedTasksList";
 
 export default function CCOTasksPage() {
     const { user, loading } = useAuth();
@@ -85,6 +86,8 @@ export default function CCOTasksPage() {
         <>
             <Header title="Tasks Overview (CCO)" />
             <main className="p-4 md:ml-64 md:p-8 space-y-8 pb-20 animate-in fade-in duration-500">
+                {/* Executive Strategic Tasks */}
+                <CeoAssignedTasksList />
 
                 {/* 1. Department Workload Chart */}
                 <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
