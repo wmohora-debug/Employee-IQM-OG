@@ -57,16 +57,36 @@ export interface Task {
     description: string;
     assignedTo?: string; // Legacy/Fallback
     assignedBy: string;
-    createdByRole?: string; // New: To identify CEO/CCO/COO tasks
-    createdByUserId?: string; // New: To identify creator for visibility filtering
-    status: 'pending' | 'in-progress' | 'submitted' | 'verified' | 'completed'; // Added completed for CEO tasks
+    taskType?: 'lead' | 'executive';
+    createdByRole?: string;
+    createdByUserId?: string;
+
+    // Executive Assignment Fields
+    assignedExecutiveId?: string;
+    assignedExecutiveRole?: string;
+    assignedExecutiveName?: string;
+
+    // New: Dynamic Executive Completion
+    assignedExecutives?: {
+        id: string;
+        role: string;
+        name: string;
+        completed: boolean;
+        completedAt?: any;
+    }[];
+
+    status: 'pending' | 'in-progress' | 'submitted' | 'verified' | 'completed';
     priority: 'low' | 'medium' | 'high';
     dueDate: Date | Timestamp;
     assigneeIds?: string[];
     modules?: TaskModule[];
-    department?: string; // New Field for Task
+    department?: string;
 
-    // Legacy fields (kept optional for type compatibility, but moving to module-level)
+    // Legacy fields (kept optional for type compatibility)
+    executiveCompletion?: {
+        ccoCompleted: boolean;
+        cooCompleted: boolean;
+    };
     submittedBy?: string;
     submittedAt?: any;
     submissionNote?: string;
@@ -88,6 +108,58 @@ export interface Task {
     completedAt?: any;
     completedBy?: string;
 }
+
+// ... existing code ...
+
+export const completeExecutiveTask = async (taskId: string, userId: string) => {
+    const ref = doc(db, "tasks", taskId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) throw new Error("Task not found");
+    const task = snap.data() as Task;
+
+    let updates: any = {};
+    let allCompleted = false;
+
+    // Logic 1: Use new assignedExecutives array if available
+    if (task.assignedExecutives && task.assignedExecutives.length > 0) {
+        const updatedExecutives = task.assignedExecutives.map(exec => {
+            if (exec.id === userId) {
+                return { ...exec, completed: true, completedAt: new Date() };
+            }
+            return exec;
+        });
+
+        updates.assignedExecutives = updatedExecutives;
+        allCompleted = updatedExecutives.every(e => e.completed);
+    }
+    // Logic 2: Fallback to old boolean flags (Migration support)
+    else if (task.executiveCompletion) {
+        // This part is tricky without role passed in, but we can infer or leave generic
+        // But since we are moving to array, let's assume we won't hit this for NEW tasks.
+        // For existing tasks, we can try to migrate on the fly or fail gracefully.
+        // Let's rely on the calling code to pass role if we wanted to support old schema, 
+        // but user asked for "Correct Logic" which implies fixing schema.
+        // I will focus on the array logic primarily. 
+        // If legacy, we can check if userId matches assignedTo logic.
+
+        // Actually, let's just complete it if it's a legacy single-assign task
+        if (task.assignedTo === userId) {
+            allCompleted = true;
+        }
+    }
+    // Logic 3: Legacy Single Assignment
+    else if (task.assignedTo === userId) {
+        allCompleted = true;
+    }
+
+    if (allCompleted) {
+        updates.status = 'completed';
+        updates.completedAt = serverTimestamp();
+        updates.completedBy = userId; // Last person to complete
+    }
+
+    await updateDoc(ref, updates);
+};
 
 // ... (Helper Functions stay the same until submitTask) ...
 
@@ -231,6 +303,8 @@ export const completeCeoTask = async (taskId: string, leadId: string) => {
     });
 };
 
+// Old implementation removed in favor of dynamic version above
+
 export const getEmployees = async (department?: string) => {
     let q;
     if (department) {
@@ -244,6 +318,12 @@ export const getEmployees = async (department?: string) => {
 
 export const getLeads = async () => {
     const q = query(collection(db, "users"), where("role", "==", "lead"));
+    const snapshot = await getDocs(q);
+    return snapshot.docs.map(doc => doc.data() as User);
+};
+
+export const getExecutives = async () => {
+    const q = query(collection(db, "users"), where("role", "in", ["cco", "coo"]));
     const snapshot = await getDocs(q);
     return snapshot.docs.map(doc => doc.data() as User);
 };

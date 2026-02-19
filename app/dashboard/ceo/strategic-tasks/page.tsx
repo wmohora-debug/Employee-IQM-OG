@@ -26,7 +26,25 @@ export default function StrategicTasksPage() {
     const [dueDate, setDueDate] = useState("");
     const [leads, setLeads] = useState<User[]>([]);
     const [users, setUsers] = useState<User[]>([]);
+    // Executive Form State
+    const [execTitle, setExecTitle] = useState("");
     const [isSubmitting, setIsSubmitting] = useState(false);
+    const [execDescription, setExecDescription] = useState("");
+    const [selectedExec, setSelectedExec] = useState("");
+    const [execDueDate, setExecDueDate] = useState("");
+
+    const [executives, setExecutives] = useState<User[]>([]);
+
+    // Load Executives (CCO, COO)
+    useEffect(() => {
+        if (!loading && user?.role === 'ceo') {
+            const unsub = subscribeToUsers(undefined, (allUsers) => {
+                const execs = allUsers.filter(u => ['cco', 'coo'].includes(u.role));
+                setExecutives(execs);
+            });
+            return () => unsub();
+        }
+    }, [user, loading]);
 
     // Fetch Leads when department changes
     useEffect(() => {
@@ -52,6 +70,50 @@ export default function StrategicTasksPage() {
             return () => unsub();
         }
     }, [department, user, loading]);
+
+    const handleExecSubmit = async (e: React.FormEvent) => {
+        e.preventDefault();
+        if (!selectedExec || !execTitle || !execDescription || !execDueDate) {
+            alert("Please fill all fields.");
+            return;
+        }
+
+        setIsSubmitting(true);
+        try {
+            await createTask({
+                title: execTitle,
+                description: execDescription,
+                assignedTo: selectedExec,
+                assignedBy: user!.uid,
+                status: 'pending',
+                department: "Executive", // No specific department for Strategic Exec tasks
+                priority: 'high',
+                dueDate: new Date(execDueDate),
+                assigneeIds: [selectedExec],
+                createdByRole: 'ceo',
+                taskType: 'executive', // Mark as executive task
+                assignedExecutives: [
+                    {
+                        id: selectedExec,
+                        role: executives.find(u => u.uid === selectedExec)?.role || 'executive',
+                        name: executives.find(u => u.uid === selectedExec)?.name || 'Unknown Executive',
+                        completed: false
+                    }
+                ]
+            });
+
+            alert("Strategic Task Assigned to Executive Successfully.");
+            setExecTitle("");
+            setExecDescription("");
+            setExecDueDate("");
+            setSelectedExec("");
+        } catch (error) {
+            console.error(error);
+            alert("Failed to assign task.");
+        } finally {
+            setIsSubmitting(false);
+        }
+    };
 
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -96,11 +158,88 @@ export default function StrategicTasksPage() {
         <>
             <Header title="Strategic Tasks" />
             <main className="p-4 md:ml-64 md:p-8 space-y-8 pb-20 animate-in fade-in duration-500">
-                <div className="max-w-3xl mx-auto">
-                    <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
-                        <div className="p-6 border-b border-gray-100 bg-gray-50/50">
-                            <h2 className="text-lg font-bold text-gray-800">Assign Strategic Task</h2>
-                            <p className="text-sm text-gray-500">Create high-level directives for Department Leads.</p>
+                <div className="max-w-3xl mx-auto space-y-8">
+
+                    {/* --- EXECUTIVE ASSIGNMENT SECTION --- */}
+                    <div className="bg-white rounded-2xl shadow-sm border border-purple-100 overflow-hidden">
+                        <div className="p-6 border-b border-purple-100 bg-purple-50">
+                            <h2 className="text-lg font-bold text-purple-900">Assign Strategic Task To Executives</h2>
+                            <p className="text-sm text-purple-600">Directives for C-Level Executives (COO, CCO).</p>
+                        </div>
+
+                        <form onSubmit={handleExecSubmit} className="p-8 space-y-6">
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Assign Executive</label>
+                                    <select
+                                        value={selectedExec}
+                                        onChange={(e) => setSelectedExec(e.target.value)}
+                                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500/20 outline-none"
+                                    >
+                                        <option value="">Select Executive...</option>
+                                        {executives.map(exec => (
+                                            <option key={exec.uid} value={exec.uid}>
+                                                {exec.name} ({exec.role.toUpperCase()})
+                                            </option>
+                                        ))}
+                                    </select>
+                                </div>
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Target Completion Date</label>
+                                    <input
+                                        type="date"
+                                        required
+                                        min={new Date().toISOString().split('T')[0]}
+                                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500/20 outline-none"
+                                        value={execDueDate}
+                                        onChange={(e) => setExecDueDate(e.target.value)}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="space-y-4">
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Task Title</label>
+                                    <input
+                                        type="text"
+                                        required
+                                        placeholder="e.g. Q4 Financial Strategy"
+                                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500/20 outline-none font-medium"
+                                        value={execTitle}
+                                        onChange={(e) => setExecTitle(e.target.value)}
+                                    />
+                                </div>
+
+                                <div>
+                                    <label className="block text-sm font-semibold text-gray-700 mb-2">Detailed Directive</label>
+                                    <textarea
+                                        required
+                                        placeholder="Outline key objectives and deliverables..."
+                                        className="w-full px-4 py-3 rounded-xl border border-gray-200 focus:ring-2 focus:ring-purple-500/20 outline-none min-h-[150px] resize-y"
+                                        value={execDescription}
+                                        onChange={(e) => setExecDescription(e.target.value)}
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="pt-4 flex justify-end">
+                                <button
+                                    type="submit"
+                                    disabled={isSubmitting || !selectedExec}
+                                    className="px-8 py-3 bg-purple-600 text-white font-bold rounded-xl shadow-lg hover:bg-purple-700 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    {isSubmitting ? <Loader2 className="animate-spin w-5 h-5" /> : <Send className="w-5 h-5" />}
+                                    {isSubmitting ? "Assigning..." : "Assign Task"}
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    {/* --- LEAD ASSIGNMENT SECTION (RENAMED) --- */}
+                    <div className="bg-white rounded-2xl shadow-sm border border-purple-100 overflow-hidden">
+                        <div className="p-6 border-b border-purple-100 bg-purple-50">
+                            <h2 className="text-lg font-bold text-purple-900">Assign Strategic Task To Leads</h2>
+                            <p className="text-sm text-purple-600">Create high-level directives for Department Leads.</p>
                         </div>
 
                         <form onSubmit={handleSubmit} className="p-8 space-y-6">
@@ -179,8 +318,8 @@ export default function StrategicTasksPage() {
                             <div className="pt-4 flex justify-end">
                                 <button
                                     type="submit"
-                                    disabled={isSubmitting || leads.length === 0}
-                                    className="px-8 py-3 bg-iqm-primary text-white font-bold rounded-xl shadow-lg hover:bg-iqm-sidebar active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
+                                    disabled={isSubmitting || !selectedLead || !title || !description || !dueDate}
+                                    className="px-8 py-3 bg-purple-600 text-white font-bold rounded-xl shadow-lg hover:bg-purple-700 active:scale-95 transition-all flex items-center gap-2 disabled:opacity-50 disabled:cursor-not-allowed"
                                 >
                                     {isSubmitting ? <Loader2 className="animate-spin w-5 h-5" /> : <Send className="w-5 h-5" />}
                                     {isSubmitting ? "Assigning..." : "Assign Task"}
@@ -191,8 +330,14 @@ export default function StrategicTasksPage() {
                     </div>
                 </div>
 
-                {/* Assigned To Lead List */}
-                <StrategicTasksList />
+                {/* Lists Section */}
+                <div>
+                    {/* Assigned To Executives List */}
+                    <StrategicTasksList targetRole="executive" />
+
+                    {/* Assigned To Lead List */}
+                    <StrategicTasksList targetRole="lead" />
+                </div>
             </main>
         </>
     );

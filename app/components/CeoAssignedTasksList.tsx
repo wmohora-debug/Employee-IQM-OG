@@ -1,7 +1,7 @@
 "use client";
 import { CheckCircle, Clock, CheckSquare } from "lucide-react";
 import { useState, useEffect } from "react";
-import { subscribeToCeoTasks, Task, completeCeoTask } from "@/lib/db";
+import { subscribeToCeoTasks, Task, completeCeoTask, completeExecutiveTask } from "@/lib/db";
 import { useAuth } from "@/app/context/AuthContext";
 import { ExpandableText } from "./ExpandableText";
 
@@ -12,10 +12,23 @@ export function CeoAssignedTasksList() {
     const [completingId, setCompletingId] = useState<string | null>(null);
 
     useEffect(() => {
-        if (!user || user.role !== 'lead') return;
+        if (!user || !['lead', 'cco', 'coo'].includes(user.role)) return;
 
         const unsub = subscribeToCeoTasks(user.uid, (updatedTasks) => {
-            setTasks(updatedTasks);
+            // Filter out tasks that the current executive has ALREADY completed
+            // even if the task itself is not fully completed (waiting for others).
+            const activeTasks = updatedTasks.filter(t => {
+                if (t.assignedExecutives) {
+                    const myPart = t.assignedExecutives.find(e => e.id === user.uid);
+                    if (myPart && myPart.completed) return false;
+                }
+                // Fallback for legacy
+                if (user.role === 'cco' && t.executiveCompletion?.ccoCompleted) return false;
+                if (user.role === 'coo' && t.executiveCompletion?.cooCompleted) return false;
+
+                return true;
+            });
+            setTasks(activeTasks);
             setIsLoading(false);
         });
         return () => unsub();
@@ -26,8 +39,12 @@ export function CeoAssignedTasksList() {
 
         setCompletingId(taskId);
         try {
-            await completeCeoTask(taskId, user!.uid);
-            // Task will be removed from list via subscription update
+            if (user?.role === 'cco' || user?.role === 'coo') {
+                await completeExecutiveTask(taskId, user.uid);
+            } else {
+                await completeCeoTask(taskId, user!.uid);
+            }
+            // Task will be removed from list via subscription update if filtered out above
         } catch (error) {
             console.error("Failed to complete task", error);
             alert("Failed to update status.");
@@ -90,19 +107,27 @@ export function CeoAssignedTasksList() {
                         </div>
 
                         <div className="flex items-center justify-end md:self-center">
-                            <button
-                                onClick={() => handleComplete(task.id!)}
-                                disabled={completingId === task.id}
-                                className={`
-                                    flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-all active:scale-95
-                                    ${completingId === task.id
-                                        ? 'bg-gray-100 text-gray-400 cursor-wait'
-                                        : 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:shadow-purple-200 hover:shadow-lg hover:-translate-y-0.5'}
-                                `}
-                            >
-                                <CheckCircle className="w-4 h-4" />
-                                {completingId === task.id ? "Updating..." : "Mark Complete"}
-                            </button>
+                            {((user?.role === 'cco' && task.executiveCompletion?.ccoCompleted) ||
+                                (user?.role === 'coo' && task.executiveCompletion?.cooCompleted)) ? (
+                                <div className="flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold bg-green-50 text-green-600 border border-green-100 shadow-sm">
+                                    <CheckCircle className="w-4 h-4" />
+                                    <span>Completed by You</span>
+                                </div>
+                            ) : (
+                                <button
+                                    onClick={() => handleComplete(task.id!)}
+                                    disabled={completingId === task.id}
+                                    className={`
+                                            flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-bold shadow-sm transition-all active:scale-95
+                                            ${completingId === task.id
+                                            ? 'bg-gray-100 text-gray-400 cursor-wait'
+                                            : 'bg-gradient-to-r from-purple-600 to-indigo-600 text-white hover:shadow-purple-200 hover:shadow-lg hover:-translate-y-0.5'}
+                                        `}
+                                >
+                                    <CheckCircle className="w-4 h-4" />
+                                    {completingId === task.id ? "Updating..." : "Mark Complete"}
+                                </button>
+                            )}
                         </div>
                     </div>
                 ))}
