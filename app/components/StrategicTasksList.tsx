@@ -1,10 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { subscribeToAllTasks, subscribeToUsers, Task, User, deleteTask } from "@/lib/db";
+import { subscribeToAllTasks, subscribeToUsers, Task, User, deleteTask, verifyExecutiveTask, rejectExecutiveTask } from "@/lib/db";
 import { useAuth } from "@/app/context/AuthContext";
 import { ExpandableText } from "./ExpandableText";
-import { Copy, Trash2, Calendar, CheckCircle2, Clock, MoreHorizontal, Pencil } from "lucide-react";
+import { Copy, Trash2, Calendar, CheckCircle2, Clock, MoreHorizontal, Pencil, X } from "lucide-react";
 import { EditTaskModal } from "./EditTaskModal";
 
 interface StrategicTasksListProps {
@@ -16,6 +16,12 @@ export function StrategicTasksList({ targetRole = 'lead' }: StrategicTasksListPr
     const [usersMap, setUsersMap] = useState<Record<string, User>>({});
     const [openMenuId, setOpenMenuId] = useState<string | null>(null);
     const [editTaskData, setEditTaskData] = useState<Task | null>(null);
+
+    // Verification State
+    const [verificationModal, setVerificationModal] = useState<{ task: Task } | null>(null);
+    const [rejectionReason, setRejectionReason] = useState("");
+    const [isRejecting, setIsRejecting] = useState(false);
+    const [processing, setProcessing] = useState(false);
 
     const { user } = useAuth(); // Get current user
 
@@ -53,6 +59,44 @@ export function StrategicTasksList({ targetRole = 'lead' }: StrategicTasksListPr
         if (confirm("Are you sure you want to delete this strategic task?")) {
             await deleteTask(taskId);
             setOpenMenuId(null);
+        }
+    };
+
+    const handleOpenVerification = (task: Task) => {
+        setVerificationModal({ task });
+        setRejectionReason("");
+        setIsRejecting(false);
+    };
+
+    const handleVerifyTask = async () => {
+        if (!user || !verificationModal) return;
+        setProcessing(true);
+        try {
+            await verifyExecutiveTask(verificationModal.task.id!, user.uid);
+            setVerificationModal(null);
+        } catch (error) {
+            console.error(error);
+            alert("Failed to verify task.");
+        } finally {
+            setProcessing(false);
+        }
+    };
+
+    const handleRejectTask = async () => {
+        if (!user || !verificationModal) return;
+        if (!rejectionReason.trim()) {
+            alert("Please provide a reason.");
+            return;
+        }
+        setProcessing(true);
+        try {
+            await rejectExecutiveTask(verificationModal.task.id!, user.uid, rejectionReason);
+            setVerificationModal(null);
+        } catch (error) {
+            console.error(error);
+            alert("Failed to reject task.");
+        } finally {
+            setProcessing(false);
         }
     };
 
@@ -97,6 +141,12 @@ export function StrategicTasksList({ targetRole = 'lead' }: StrategicTasksListPr
                             if (isCompleted) {
                                 statusText = "Completed";
                                 statusColor = "bg-green-100 text-green-700 border-green-200";
+                            } else if (task.status === 'under_review') {
+                                statusText = "Under Review";
+                                statusColor = "bg-yellow-100 text-yellow-700 border-yellow-200";
+                            } else if (task.status === 'rejected') {
+                                statusText = "Rejected";
+                                statusColor = "bg-red-50 text-red-700 border-red-200";
                             } else if (task.taskType === 'executive') {
                                 // Logic 1: Check dynamic array
                                 if (task.assignedExecutives && task.assignedExecutives.length > 0) {
@@ -155,38 +205,51 @@ export function StrategicTasksList({ targetRole = 'lead' }: StrategicTasksListPr
                                         </div>
                                     </td>
                                     <td className="px-6 py-4 text-right relative align-top">
-                                        <button
-                                            onClick={(e) => {
-                                                e.stopPropagation();
-                                                setOpenMenuId(openMenuId === task.id ? null : task.id!);
-                                            }}
-                                            className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors active:scale-95"
-                                        >
-                                            <MoreHorizontal className="w-5 h-5" />
-                                        </button>
-
-                                        {openMenuId === task.id && (
-                                            <div className="absolute right-8 top-12 w-40 bg-white rounded-xl shadow-xl border border-gray-100 z-50 animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
-                                                {!isCompleted && (
-                                                    <button
-                                                        onClick={(e) => {
-                                                            e.stopPropagation();
-                                                            setEditTaskData(task);
-                                                            setOpenMenuId(null);
-                                                        }}
-                                                        className="w-full text-left px-4 py-3 text-gray-700 hover:bg-gray-50 text-sm font-medium flex items-center gap-2 transition-colors border-b border-gray-50"
-                                                    >
-                                                        <Pencil className="w-4 h-4" /> Edit Task
-                                                    </button>
-                                                )}
+                                        <div className="flex items-center justify-end gap-2 relative">
+                                            {(task.status === 'under_review' || task.status === 'rejected') && (
                                                 <button
-                                                    onClick={(e) => { e.stopPropagation(); handleDelete(task.id!); }}
-                                                    className="w-full text-left px-4 py-3 text-red-600 hover:bg-red-50 text-sm font-medium flex items-center gap-2 transition-colors"
+                                                    onClick={() => handleOpenVerification(task)}
+                                                    className={`${task.status === 'rejected' ? 'bg-red-100 hover:bg-red-200 text-red-800' : 'bg-yellow-100 hover:bg-yellow-200 text-yellow-800'} text-xs px-3 py-1.5 rounded-lg font-bold shadow-sm transition-all flex items-center gap-1`}
                                                 >
-                                                    <Trash2 className="w-4 h-4" /> Delete Task
+                                                    {task.status === 'rejected' ? 'View' : 'Review'}
                                                 </button>
+                                            )}
+
+                                            <div className="relative inline-block text-left">
+                                                <button
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        setOpenMenuId(openMenuId === task.id ? null : task.id!);
+                                                    }}
+                                                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors active:scale-95"
+                                                >
+                                                    <MoreHorizontal className="w-5 h-5" />
+                                                </button>
+
+                                                {openMenuId === task.id && (
+                                                    <div className="absolute right-8 top-12 w-40 bg-white rounded-xl shadow-xl border border-gray-100 z-50 animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
+                                                        {!isCompleted && (
+                                                            <button
+                                                                onClick={(e) => {
+                                                                    e.stopPropagation();
+                                                                    setEditTaskData(task);
+                                                                    setOpenMenuId(null);
+                                                                }}
+                                                                className="w-full text-left px-4 py-3 text-gray-700 hover:bg-gray-50 text-sm font-medium flex items-center gap-2 transition-colors border-b border-gray-50"
+                                                            >
+                                                                <Pencil className="w-4 h-4" /> Edit Task
+                                                            </button>
+                                                        )}
+                                                        <button
+                                                            onClick={(e) => { e.stopPropagation(); handleDelete(task.id!); }}
+                                                            className="w-full text-left px-4 py-3 text-red-600 hover:bg-red-50 text-sm font-medium flex items-center gap-2 transition-colors"
+                                                        >
+                                                            <Trash2 className="w-4 h-4" /> Delete Task
+                                                        </button>
+                                                    </div>
+                                                )}
                                             </div>
-                                        )}
+                                        </div>
                                     </td>
                                 </tr>
                             );
@@ -200,6 +263,77 @@ export function StrategicTasksList({ targetRole = 'lead' }: StrategicTasksListPr
                 isOpen={!!editTaskData}
                 onClose={() => setEditTaskData(null)}
             />
+
+            {verificationModal && (
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-[60] p-4">
+                    <div className="bg-white rounded-2xl shadow-xl w-full max-w-2xl overflow-hidden animate-in fade-in zoom-in duration-200 flex flex-col max-h-[90vh]">
+                        <div className="p-6 border-b border-gray-100 flex justify-between items-center bg-gray-50/50 shrink-0">
+                            <div>
+                                <h3 className="font-bold text-gray-800 text-lg">Review Submission</h3>
+                                <p className="text-xs text-gray-500">{verificationModal.task.title}</p>
+                            </div>
+                            <button onClick={() => setVerificationModal(null)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                                <X className="w-5 h-5" />
+                            </button>
+                        </div>
+
+                        <div className="p-6 overflow-y-auto custom-scrollbar">
+                            <div className="space-y-4">
+                                {(verificationModal.task.rejectionReason || verificationModal.task.previousRejectionReason) && (
+                                    <div className="bg-red-50 p-4 rounded-xl border border-red-200 shadow-sm mb-4">
+                                        <label className="block text-xs font-bold text-red-700 uppercase tracking-wide mb-2">Previous Rejection Note</label>
+                                        <p className="text-sm text-red-900 leading-relaxed whitespace-pre-wrap">
+                                            {verificationModal.task.rejectionReason || verificationModal.task.previousRejectionReason}
+                                        </p>
+                                    </div>
+                                )}
+
+                                <div className="bg-gray-50 p-4 rounded-xl border border-gray-200">
+                                    <label className="block text-xs font-bold text-gray-400 uppercase tracking-wide mb-2">Proof of Work</label>
+                                    <div className="p-3 bg-white rounded border border-gray-100 min-h-[100px]">
+                                        <p className="text-sm text-gray-800 whitespace-pre-wrap">
+                                            {verificationModal.task.proofOfWork || "No proof provided."}
+                                        </p>
+                                    </div>
+                                    <div className="mt-3 text-xs text-gray-500">
+                                        Submitted by {getAssigneeName(verificationModal.task.submittedBy!)} on {verificationModal.task.submittedAt?.seconds ? new Date(verificationModal.task.submittedAt.seconds * 1000).toLocaleString() : 'Recent'}
+                                    </div>
+                                </div>
+
+                                {verificationModal.task.status === 'under_review' ? (
+                                    isRejecting ? (
+                                        <div className="mt-4 animate-in fade-in">
+                                            <label className="block text-xs font-bold text-red-500 uppercase tracking-wide mb-2">Rejection Reason</label>
+                                            <textarea
+                                                className="w-full text-sm p-3 border border-red-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-red-500/20 bg-red-50/50 text-red-900"
+                                                placeholder="Explain why this needs revision..."
+                                                value={rejectionReason}
+                                                onChange={(e) => setRejectionReason(e.target.value)}
+                                                autoFocus
+                                            />
+                                            <div className="flex gap-3 mt-3 justify-end">
+                                                <button onClick={() => setIsRejecting(false)} className="text-sm text-gray-500">Cancel</button>
+                                                <button onClick={handleRejectTask} disabled={processing} className="bg-red-600 text-white px-4 py-2 rounded-lg text-sm font-bold shadow-sm hover:bg-red-700">Confirm Rejection</button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="flex justify-end gap-3 mt-4">
+                                            <button onClick={() => setIsRejecting(true)} className="text-red-600 hover:bg-red-50 px-4 py-2 rounded-lg text-sm font-bold border border-transparent hover:border-red-100 transition-all">Reject Task</button>
+                                            <button onClick={handleVerifyTask} disabled={processing} className="bg-green-600 text-white px-6 py-2 rounded-lg text-sm font-bold shadow-sm hover:bg-green-700 flex items-center gap-2">
+                                                <CheckCircle2 className="w-4 h-4" /> Verify & Complete
+                                            </button>
+                                        </div>
+                                    )
+                                ) : (
+                                    <div className="text-center p-4 bg-gray-50 rounded-xl text-sm font-medium text-gray-500 border border-gray-100 mt-4">
+                                        Waiting for executive to review feedback and resubmit.
+                                    </div>
+                                )}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

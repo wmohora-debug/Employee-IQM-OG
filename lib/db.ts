@@ -75,7 +75,7 @@ export interface Task {
         completedAt?: any;
     }[];
 
-    status: 'pending' | 'in-progress' | 'submitted' | 'verified' | 'completed';
+    status: 'pending' | 'in-progress' | 'submitted' | 'verified' | 'completed' | 'under_review' | 'rejected';
     priority: 'low' | 'medium' | 'high';
     dueDate: Date | Timestamp;
     assigneeIds?: string[];
@@ -87,12 +87,19 @@ export interface Task {
         ccoCompleted: boolean;
         cooCompleted: boolean;
     };
+
+    // Executive Proof of Work
+    proofOfWork?: string;
+
     submittedBy?: string;
     submittedAt?: any;
     submissionNote?: string;
     verifiedBy?: string;
     verifiedAt?: any;
     rejectionReason?: string;
+    rejectedAt?: any;
+    rejectedBy?: string;
+    previousRejectionReason?: string;
 
     statusHistory?: Array<{
         status: string;
@@ -159,6 +166,72 @@ export const completeExecutiveTask = async (taskId: string, userId: string) => {
     }
 
     await updateDoc(ref, updates);
+};
+
+// --- Executive Proof of Work Functions ---
+
+export const submitExecutiveProof = async (taskId: string, userId: string, proofText: string) => {
+    const ref = doc(db, "tasks", taskId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) throw new Error("Task not found");
+    const task = snap.data() as Task;
+
+    if (!proofText || proofText.trim().length < 20) {
+        throw new Error("Proof of work must be at least 20 characters.");
+    }
+
+    const updates: any = {
+        status: 'under_review',
+        proofOfWork: proofText.trim(),
+        submittedBy: userId,
+        submittedAt: serverTimestamp(),
+        // Clear any previous rejection
+        rejectionReason: '',
+        rejectedBy: '',
+        rejectedAt: null
+    };
+
+    if (task.rejectionReason) {
+        updates.previousRejectionReason = task.rejectionReason;
+    }
+
+    await updateDoc(ref, updates);
+};
+
+export const verifyExecutiveTask = async (taskId: string, ceoId: string) => {
+    const ref = doc(db, "tasks", taskId);
+    const snap = await getDoc(ref);
+    if (!snap.exists()) throw new Error("Task not found");
+    const task = snap.data() as Task;
+
+    const updates: any = {
+        status: 'completed',
+        completedAt: serverTimestamp(),
+        verifiedBy: ceoId,
+        verifiedAt: serverTimestamp()
+    };
+
+    // Also mark assignedExecutives as completed if present
+    if (task.assignedExecutives && task.assignedExecutives.length > 0) {
+        updates.assignedExecutives = task.assignedExecutives.map(exec => ({
+            ...exec,
+            completed: true,
+            completedAt: new Date()
+        }));
+    }
+
+    await updateDoc(ref, updates);
+};
+
+export const rejectExecutiveTask = async (taskId: string, ceoId: string, reason: string) => {
+    const ref = doc(db, "tasks", taskId);
+    await updateDoc(ref, {
+        status: 'rejected',
+        rejectionReason: reason,
+        rejectedBy: ceoId,
+        rejectedAt: serverTimestamp()
+        // Note: Do NOT clear proofOfWork or submittedAt per requirements
+    });
 };
 
 // ... (Helper Functions stay the same until submitTask) ...
