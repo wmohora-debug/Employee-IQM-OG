@@ -6,6 +6,7 @@ import { subscribeToTasks, Task, submitTask, submitTaskModule } from "@/lib/db";
 import { useAuth } from "@/app/context/AuthContext";
 
 import { ExpandableText } from "./ExpandableText";
+import { motion, AnimatePresence } from "framer-motion";
 
 export function EmployeeTaskTable({ completedOnly = false, compact = false }: { completedOnly?: boolean; compact?: boolean }) {
     const { user } = useAuth();
@@ -99,118 +100,128 @@ export function EmployeeTaskTable({ completedOnly = false, compact = false }: { 
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
-                        {tasks.length === 0 ? (
-                            <tr>
-                                <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
-                                    No tasks assigned yet. {user && <span className="text-xs text-gray-400 block mt-1">(ID: {user.uid})</span>}
-                                </td>
-                            </tr>
-                        ) : (
-                            tasks.map((t) => {
-                                const myModules = t.modules?.map((m, idx) => ({ ...m, idx })).filter(m => m.assignedTo === user?.uid) || [];
-                                const isDetailedTask = myModules.length > 0;
+                        <AnimatePresence mode="popLayout">
+                            {tasks.length === 0 ? (
+                                <tr>
+                                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                                        No tasks assigned yet. {user && <span className="text-xs text-gray-400 block mt-1">(ID: {user.uid})</span>}
+                                    </td>
+                                </tr>
+                            ) : (
+                                tasks.map((t) => {
+                                    const myModules = t.modules?.map((m, idx) => ({ ...m, idx })).filter(m => m.assignedTo === user?.uid) || [];
+                                    const isDetailedTask = myModules.length > 0;
 
-                                // Overall Task Status (for reference, but actions are module based)
-                                const isTaskVerified = t.status === 'verified';
+                                    // Overall Task Status (for reference, but actions are module based)
+                                    const isTaskVerified = t.status === 'verified';
 
-                                return (
-                                    <tr key={t.id} className="hover:bg-gray-50/50 transition-colors align-top">
-                                        <td className="px-6 py-4 text-gray-800">
-                                            <div className="font-semibold mb-2">{t.title}</div>
+                                    return (
+                                        <motion.tr
+                                            key={t.id}
+                                            layout
+                                            initial={{ opacity: 0, x: -10 }}
+                                            animate={{ opacity: 1, x: 0 }}
+                                            exit={{ opacity: 0, x: 10 }}
+                                            transition={{ duration: 0.2 }}
+                                            className="hover:bg-gray-50/50 transition-colors align-top"
+                                        >
+                                            <td className="px-6 py-4 text-gray-800">
+                                                <div className="font-semibold mb-2">{t.title}</div>
 
-                                            {isDetailedTask && (
-                                                <div className="space-y-3 pl-2 border-l-2 border-gray-100">
-                                                    {myModules.map((m) => (
-                                                        <div key={m.id || m.idx} className="bg-gray-50/80 p-3 rounded-lg border border-gray-100">
-                                                            <div className="flex justify-between items-start mb-2 gap-2">
-                                                                <span className="text-sm font-medium text-gray-700">{m.title}</span>
-                                                                <span className={`text-[10px] px-2 py-0.5 rounded-full border capitalization ${getStatusColor(m.status)}`}>
-                                                                    {m.status === 'submitted' ? 'Reviewing' : m.status}
-                                                                </span>
-                                                            </div>
-                                                            <div className="text-xs text-gray-500 mb-2">
-                                                                <ExpandableText text={m.description || "No description provided."} previewWords={10} modalTitle={`${m.title} - Description`} />
-                                                            </div>
-                                                            {m.rejectionReason && (m.status === 'rejected' || m.status === 'pending') && (
-                                                                <div className="text-[10px] text-red-600 bg-red-50 p-2 rounded mb-2">
-                                                                    <b>Lead Feedback:</b> {m.rejectionReason}
+                                                {isDetailedTask && (
+                                                    <div className="space-y-3 pl-2 border-l-2 border-gray-100">
+                                                        {myModules.map((m) => (
+                                                            <div key={m.id || m.idx} className="bg-gray-50/80 p-3 rounded-lg border border-gray-100">
+                                                                <div className="flex justify-between items-start mb-2 gap-2">
+                                                                    <span className="text-sm font-medium text-gray-700">{m.title}</span>
+                                                                    <span className={`text-[10px] px-2 py-0.5 rounded-full border capitalization ${getStatusColor(m.status)}`}>
+                                                                        {m.status === 'submitted' ? 'Reviewing' : m.status}
+                                                                    </span>
                                                                 </div>
-                                                            )}
-                                                            {/* Module Action here if mobile, or keep in main action column? 
+                                                                <div className="text-xs text-gray-500 mb-2">
+                                                                    <ExpandableText text={m.description || "No description provided."} previewWords={10} modalTitle={`${m.title} - Description`} />
+                                                                </div>
+                                                                {m.rejectionReason && (m.status === 'rejected' || m.status === 'pending') && (
+                                                                    <div className="text-[10px] text-red-600 bg-red-50 p-2 rounded mb-2">
+                                                                        <b>Lead Feedback:</b> {m.rejectionReason}
+                                                                    </div>
+                                                                )}
+                                                                {/* Module Action here if mobile, or keep in main action column? 
                                                                 Let's put a small action button HERE for clarity if multiple modules exist.
                                                             */}
-                                                        </div>
-                                                    ))}
-                                                </div>
-                                            )}
-                                        </td>
-                                        <td className="px-6 py-4 text-gray-500 text-sm max-w-[250px]">
-                                            <ExpandableText text={t.description} previewWords={3} modalTitle="Task Description" />
-                                        </td>
-
-                                        <td className="px-6 py-4">
-                                            <span className={`text-xs font-medium capitalize 
-                                                ${t.priority === 'high' ? 'text-red-500' :
-                                                    t.priority === 'medium' ? 'text-orange-500' :
-                                                        'text-blue-500'}`}>
-                                                {t.priority}
-                                            </span>
-                                        </td>
-                                        <td className="px-6 py-4 text-sm">
-                                            {(() => {
-                                                const getDate = (val: any) => val?.seconds ? new Date(val.seconds * 1000) : val ? new Date(val) : null;
-                                                const dateObj = completedOnly ? getDate(t.completedAt) : getDate(t.dueDate);
-                                                return (
-                                                    <div className="flex items-center gap-2 text-gray-600">
-                                                        <Calendar className="w-4 h-4 text-gray-400" />
-                                                        {dateObj ? (
-                                                            <span>{completedOnly ? dateObj.toLocaleDateString() : dateObj.toLocaleDateString()}</span>
-                                                        ) : 'No Date'}
-                                                    </div>
-                                                );
-                                            })()}
-                                        </td>
-                                        {!completedOnly && (
-                                            <td className="px-6 py-4 text-right">
-                                                <div className="flex flex-col gap-3 items-end">
-                                                    {isDetailedTask ? (
-                                                        myModules.map((m) => (
-                                                            <div key={m.id || m.idx} className="h-full flex items-center min-h-[50px]">
-                                                                {/* We need better alignment. Let's just render buttons. */}
-                                                                <button
-                                                                    onClick={() => handleOpenSubmission(t.id!, t.title, m.id || `${m.idx}`, m.title)}
-                                                                    disabled={m.status === 'submitted' || m.status === 'verified'}
-                                                                    className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-all whitespace-nowrap
-                                                                        ${m.status === 'submitted' ? 'bg-yellow-100 text-yellow-700 cursor-default' :
-                                                                            m.status === 'verified' ? 'bg-green-50 text-green-600 cursor-default' :
-                                                                                'bg-iqm-primary text-white hover:bg-iqm-sidebar shadow-sm'}`}
-                                                                >
-                                                                    {m.status === 'submitted' ? 'Under Review' :
-                                                                        m.status === 'verified' ? 'Verified' :
-                                                                            m.status === 'rejected' ? 'Re-Submit' : 'Submit Module'}
-                                                                </button>
                                                             </div>
-                                                        ))
-                                                    ) : (
-                                                        // Legacy Single Task Action
-                                                        <button
-                                                            onClick={() => handleOpenSubmission(t.id!, t.title, "", "")}
-                                                            disabled={t.status === 'submitted' || t.status === 'verified'}
-                                                            className={`text-xs px-4 py-2 rounded-lg font-medium transition-all ${t.status === 'submitted' ? 'bg-yellow-100 text-yellow-700' :
-                                                                t.status === 'verified' ? 'bg-green-50 text-green-600' :
-                                                                    'bg-iqm-primary text-white'
-                                                                }`}
-                                                        >
-                                                            {t.status === 'submitted' ? 'In Review' : t.status === 'verified' ? 'Verified' : 'Submit Task'}
-                                                        </button>
-                                                    )}
-                                                </div>
+                                                        ))}
+                                                    </div>
+                                                )}
                                             </td>
-                                        )}
-                                    </tr>
-                                )
-                            })
-                        )}
+                                            <td className="px-6 py-4 text-gray-500 text-sm max-w-[250px]">
+                                                <ExpandableText text={t.description} previewWords={3} modalTitle="Task Description" />
+                                            </td>
+
+                                            <td className="px-6 py-4">
+                                                <span className={`text-xs font-medium capitalize 
+                                                ${t.priority === 'high' ? 'text-red-500' :
+                                                        t.priority === 'medium' ? 'text-orange-500' :
+                                                            'text-blue-500'}`}>
+                                                    {t.priority}
+                                                </span>
+                                            </td>
+                                            <td className="px-6 py-4 text-sm">
+                                                {(() => {
+                                                    const getDate = (val: any) => val?.seconds ? new Date(val.seconds * 1000) : val ? new Date(val) : null;
+                                                    const dateObj = completedOnly ? getDate(t.completedAt) : getDate(t.dueDate);
+                                                    return (
+                                                        <div className="flex items-center gap-2 text-gray-600">
+                                                            <Calendar className="w-4 h-4 text-gray-400" />
+                                                            {dateObj ? (
+                                                                <span>{completedOnly ? dateObj.toLocaleDateString() : dateObj.toLocaleDateString()}</span>
+                                                            ) : 'No Date'}
+                                                        </div>
+                                                    );
+                                                })()}
+                                            </td>
+                                            {!completedOnly && (
+                                                <td className="px-6 py-4 text-right">
+                                                    <div className="flex flex-col gap-3 items-end">
+                                                        {isDetailedTask ? (
+                                                            myModules.map((m) => (
+                                                                <div key={m.id || m.idx} className="h-full flex items-center min-h-[50px]">
+                                                                    {/* We need better alignment. Let's just render buttons. */}
+                                                                    <button
+                                                                        onClick={() => handleOpenSubmission(t.id!, t.title, m.id || `${m.idx}`, m.title)}
+                                                                        disabled={m.status === 'submitted' || m.status === 'verified'}
+                                                                        className={`text-xs px-3 py-1.5 rounded-lg font-medium transition-all whitespace-nowrap
+                                                                        ${m.status === 'submitted' ? 'bg-yellow-100 text-yellow-700 cursor-default' :
+                                                                                m.status === 'verified' ? 'bg-green-50 text-green-600 cursor-default' :
+                                                                                    'bg-iqm-primary text-white hover:bg-iqm-sidebar shadow-sm'}`}
+                                                                    >
+                                                                        {m.status === 'submitted' ? 'Under Review' :
+                                                                            m.status === 'verified' ? 'Verified' :
+                                                                                m.status === 'rejected' ? 'Re-Submit' : 'Submit Module'}
+                                                                    </button>
+                                                                </div>
+                                                            ))
+                                                        ) : (
+                                                            // Legacy Single Task Action
+                                                            <button
+                                                                onClick={() => handleOpenSubmission(t.id!, t.title, "", "")}
+                                                                disabled={t.status === 'submitted' || t.status === 'verified'}
+                                                                className={`text-xs px-4 py-2 rounded-lg font-medium transition-all ${t.status === 'submitted' ? 'bg-yellow-100 text-yellow-700' :
+                                                                    t.status === 'verified' ? 'bg-green-50 text-green-600' :
+                                                                        'bg-iqm-primary text-white'
+                                                                    }`}
+                                                            >
+                                                                {t.status === 'submitted' ? 'In Review' : t.status === 'verified' ? 'Verified' : 'Submit Task'}
+                                                            </button>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                            )}
+                                        </motion.tr>
+                                    )
+                                })
+                            )}
+                        </AnimatePresence>
                     </tbody>
                 </table>
             </div>

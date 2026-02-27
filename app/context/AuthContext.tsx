@@ -1,5 +1,5 @@
 "use client";
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useContext, useEffect, useState, useRef } from "react";
 import { User, UserRole } from "@/lib/db";
 import { useRouter } from "next/navigation";
 import { onAuthStateChanged, signOut, User as FirebaseUser } from "firebase/auth";
@@ -11,6 +11,7 @@ interface AuthContextType {
     loading: boolean;
     login: (email: string) => Promise<void>; // Kept for interface compat, but unused
     logout: () => void;
+    isLoggingOut: boolean;
 }
 
 const AuthContext = createContext<AuthContextType>({
@@ -18,6 +19,7 @@ const AuthContext = createContext<AuthContextType>({
     loading: true,
     login: async () => { },
     logout: () => { },
+    isLoggingOut: false,
 });
 
 export const useAuth = () => useContext(AuthContext);
@@ -25,7 +27,13 @@ export const useAuth = () => useContext(AuthContext);
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [user, setUser] = useState<User | null>(null);
     const [loading, setLoading] = useState(true);
+    const [isLoggingOut, setIsLoggingOut] = useState(false);
+    const frozenUserRef = useRef<User | null>(null);
     const router = useRouter();
+
+    if (user && !isLoggingOut) {
+        frozenUserRef.current = user;
+    }
 
     useEffect(() => {
         const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -128,22 +136,29 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
 
     const logout = async () => {
         try {
-            setLoading(true);
+            setIsLoggingOut(true);
+
+            // Allow exit animations to play (250ms)
+            await new Promise((resolve) => setTimeout(resolve, 250));
+
             await signOut(auth);
             setUser(null);
-            // Force hard redirect to clear any in-memory state/caches
-            window.location.href = "/";
+
+            // Use router.replace to avoid history flash and navigate cleanly
+            router.replace("/");
         } catch (error) {
             console.error("Logout error", error);
-            // Fallback redirect even on error
-            window.location.href = "/";
+            router.replace("/");
         } finally {
-            setLoading(false);
+            // Wait slightly before setting false to let React unmount safely
+            setTimeout(() => setIsLoggingOut(false), 100);
         }
     };
 
+    const providedUser = isLoggingOut ? frozenUserRef.current : user;
+
     return (
-        <AuthContext.Provider value={{ user, loading, login, logout }}>
+        <AuthContext.Provider value={{ user: providedUser, loading, login, logout, isLoggingOut }}>
             {children}
         </AuthContext.Provider>
     );

@@ -1,16 +1,18 @@
 "use client";
 import { LayoutDashboard, CheckSquare, BarChart2, Award, LogOut, CheckCircle, Users, Menu, X } from "lucide-react";
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, usePathname } from 'next/navigation';
 import { IQMLogoFull } from "./Logo";
 import { useAuth } from "@/app/context/AuthContext";
-import { useState } from "react";
+import React, { useState } from "react";
+import { motion } from "framer-motion";
 import { LogoutModal } from "./LogoutModal";
 
 
-export function Sidebar({ role = 'lead' }: { role?: 'lead' | 'employee' | 'admin' | 'ceo' | 'cco' | 'coo' }) {
-    const { logout } = useAuth();
+export const Sidebar = React.memo(function Sidebar({ role = 'lead' }: { role?: 'lead' | 'employee' | 'admin' | 'ceo' | 'cco' | 'coo' }) {
+    const { logout, isLoggingOut } = useAuth();
     const router = useRouter();
+    const pathname = usePathname();
     const [isOpen, setIsOpen] = useState(false);
 
     const [isLogoutModalOpen, setIsLogoutModalOpen] = useState(false);
@@ -131,18 +133,30 @@ export function Sidebar({ role = 'lead' }: { role?: 'lead' | 'employee' | 'admin
                     </button>
                 </div>
 
-                <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto min-h-0">
-                    {menuItems.map((item) => (
-                        <Link
-                            key={item.name}
-                            href={item.href}
-                            onClick={() => setIsOpen(false)} // Close on navigate (mobile)
-                            className="group flex items-center gap-3 px-4 py-3 rounded-xl text-white/90 hover:bg-white/10 hover:text-white transition-all duration-200 active:scale-95 font-medium"
-                        >
-                            <item.icon className="w-5 h-5 opacity-80 group-hover:scale-110 group-hover:opacity-100 transition-all" />
-                            <span className="text-sm tracking-wide">{item.name}</span>
-                        </Link>
-                    ))}
+                <nav className="flex-1 px-4 py-6 space-y-2 overflow-y-auto min-h-0 relative">
+                    {menuItems.map((item) => {
+                        const isActive = pathname === item.href;
+                        return (
+                            <Link
+                                key={item.name}
+                                href={item.href}
+                                onClick={() => setIsOpen(false)} // Close on navigate (mobile)
+                                className={`group relative flex items-center gap-3 px-4 py-3 rounded-xl transition-all duration-200 active:scale-95 font-medium ${isActive ? 'text-white bg-white/10' : 'text-white/70 hover:bg-white/5 hover:text-white'}`}
+                            >
+                                {isActive && (
+                                    <motion.div
+                                        layoutId="sidebar-active-tab"
+                                        className="absolute left-0 top-0 bottom-0 w-1 rounded-r-md z-0"
+                                        style={{ backgroundColor: 'var(--theme-primary)', boxShadow: '0 0 15px 3px var(--theme-sidebar-glow)' }}
+                                        initial={false}
+                                        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                                    />
+                                )}
+                                <item.icon className={`w-5 h-5 transition-all ${isActive ? 'opacity-100 scale-110' : 'opacity-80 group-hover:scale-110 group-hover:opacity-100'}`} />
+                                <span className="text-sm tracking-wide relative z-10">{item.name}</span>
+                            </Link>
+                        );
+                    })}
                 </nav>
 
                 <div className="p-4 border-t border-white/10 space-y-1 shrink-0 bg-iqm-sidebar">
@@ -157,4 +171,4 @@ export function Sidebar({ role = 'lead' }: { role?: 'lead' | 'employee' | 'admin
             </aside>
         </>
     );
-}
+});

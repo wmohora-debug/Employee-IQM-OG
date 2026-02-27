@@ -3,6 +3,7 @@ import { useState, useEffect, useRef } from 'react';
 import { FileText, Download, Upload, Eye, Trash2, CheckCircle, Loader2 } from "lucide-react";
 import { storage } from "@/lib/firebase";
 import { ref, listAll, getDownloadURL, uploadBytes, deleteObject } from "firebase/storage";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface DocItem {
     name: string;
@@ -116,39 +117,49 @@ export function DocumentsSection() {
                         <Loader2 className="w-6 h-6 animate-spin" />
                     </div>
                 ) : documents.length === 0 ? (
-                    <p className="text-center text-gray-400 text-sm mt-10">No documents yet.</p>
+                    <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="text-center text-gray-400 text-sm mt-10">No documents yet.</motion.p>
                 ) : (
-                    documents.map((doc) => (
-                        <div key={doc.name} className="flex items-center justify-between p-3 border border-gray-100 rounded-xl hover:bg-gray-50 transition-all group duration-200">
-                            <div className="flex items-center gap-3 overflow-hidden">
-                                <div className="w-10 h-10 min-w-[2.5rem] bg-gray-50 text-gray-500 rounded-lg flex items-center justify-center group-hover:bg-white group-hover:shadow-sm transition-all border border-transparent group-hover:border-gray-100">
-                                    <FileText className="w-5 h-5 group-hover:text-iqm-primary transition-colors" />
-                                </div>
-                                <div className="truncate">
-                                    <p className="text-sm font-semibold text-gray-800 group-hover:text-iqm-primary transition-colors truncate">{doc.name}</p>
-                                    <div className="flex items-center gap-2 text-xs text-gray-500">
-                                        <span>Document</span>
+                    <AnimatePresence mode="popLayout">
+                        {documents.map((doc, idx) => (
+                            <motion.div
+                                layout
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                exit={{ opacity: 0, scale: 0.95 }}
+                                transition={{ duration: 0.2, delay: idx * 0.05 }}
+                                key={doc.name}
+                                className="flex items-center justify-between p-3 border border-gray-100 rounded-xl hover:bg-gray-50 transition-all group duration-200"
+                            >
+                                <div className="flex items-center gap-3 overflow-hidden">
+                                    <div className="w-10 h-10 min-w-[2.5rem] bg-gray-50 text-gray-500 rounded-lg flex items-center justify-center group-hover:bg-white group-hover:shadow-sm transition-all border border-transparent group-hover:border-gray-100">
+                                        <FileText className="w-5 h-5 group-hover:text-iqm-primary transition-colors" />
+                                    </div>
+                                    <div className="truncate">
+                                        <p className="text-sm font-semibold text-gray-800 group-hover:text-iqm-primary transition-colors truncate">{doc.name}</p>
+                                        <div className="flex items-center gap-2 text-xs text-gray-500">
+                                            <span>Document</span>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                            <div className="flex gap-2">
-                                <button
-                                    onClick={() => handleDownload(doc.url)}
-                                    title="Download"
-                                    className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-white hover:shadow-sm rounded-lg transition-all active:scale-90 border border-transparent hover:border-gray-100"
-                                >
-                                    <Download className="w-4 h-4" />
-                                </button>
-                                <button
-                                    onClick={() => handleDelete(doc.fullPath)}
-                                    title="Delete"
-                                    className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-white hover:shadow-sm rounded-lg transition-all active:scale-90 border border-transparent hover:border-gray-100"
-                                >
-                                    <Trash2 className="w-4 h-4" />
-                                </button>
-                            </div>
-                        </div>
-                    ))
+                                <div className="flex gap-2">
+                                    <button
+                                        onClick={() => handleDownload(doc.url)}
+                                        title="Download"
+                                        className="p-1.5 text-gray-400 hover:text-green-600 hover:bg-white hover:shadow-sm rounded-lg transition-all active:scale-90 border border-transparent hover:border-gray-100"
+                                    >
+                                        <Download className="w-4 h-4" />
+                                    </button>
+                                    <button
+                                        onClick={() => handleDelete(doc.fullPath)}
+                                        title="Delete"
+                                        className="p-1.5 text-gray-400 hover:text-red-600 hover:bg-white hover:shadow-sm rounded-lg transition-all active:scale-90 border border-transparent hover:border-gray-100"
+                                    >
+                                        <Trash2 className="w-4 h-4" />
+                                    </button>
+                                </div>
+                            </motion.div>
+                        ))}
+                    </AnimatePresence>
                 )}
             </div>
         </div>

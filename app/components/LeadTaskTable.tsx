@@ -6,6 +6,7 @@ import { useAuth } from "@/app/context/AuthContext";
 import { CreateTaskModal } from "./CreateTaskModal";
 import { EditTaskModal } from "./EditTaskModal";
 import { ExpandableText } from "./ExpandableText";
+import { motion, AnimatePresence } from "framer-motion";
 
 export function LeadTaskTable({ completedOnly = false }: { completedOnly?: boolean }) {
     const { user } = useAuth();
@@ -179,174 +180,192 @@ export function LeadTaskTable({ completedOnly = false }: { completedOnly?: boole
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
-                        {tasks.length === 0 ? (
-                            <tr>
-                                <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
-                                    No tasks found. Create one to get started.
-                                </td>
-                            </tr>
-                        ) : (
-                            tasks.map((task) => (
-                                <tr key={task.id} className="hover:bg-gray-50/50 transition-colors group">
-                                    <td className="px-6 py-4 font-medium text-gray-800">
-                                        <div className="flex items-center gap-3">
-                                            <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 group-hover:bg-white group-hover:text-iqm-primary transition-colors">
-                                                <Disc className="w-4 h-4" />
-                                            </div>
-                                            <div>
-                                                <div className="font-semibold">{task.title}</div>
-                                                <div className="text-xs text-gray-400 font-normal mt-0.5">
-                                                    <ExpandableText text={task.description} previewWords={4} modalTitle={`Task: ${task.title}`} />
-                                                </div>
-                                            </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <span className={`px-2 py-1 rounded-md text-xs font-medium capitalize 
-                                            ${task.priority === 'high' ? 'bg-red-50 text-red-600' :
-                                                task.priority === 'medium' ? 'bg-orange-50 text-orange-600' :
-                                                    'bg-blue-50 text-blue-600'}`}>
-                                            {task.priority}
-                                        </span>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex flex-wrap gap-2 max-w-[250px]">
-                                            {task.modules && task.modules.length > 0 ? (
-                                                Array.from(new Set(task.modules.map(m => m.assignedTo).filter(Boolean))).map((uid, i) => {
-                                                    const emp = userMap[uid];
-                                                    return (
-                                                        <div key={i} className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 px-2 py-1 rounded-lg shadow-sm">
-                                                            <div className="w-5 h-5 rounded-full bg-indigo-100 flex items-center justify-center text-[10px] font-bold text-indigo-700 shrink-0">
-                                                                {emp?.name ? emp.name.charAt(0).toUpperCase() : (uid.charAt(0).toUpperCase() || '?')}
-                                                            </div>
-                                                            <span className="text-xs font-medium text-gray-700 truncate max-w-[100px]" title={emp?.name || uid}>
-                                                                {emp?.name || "Unknown"}
-                                                            </span>
-                                                        </div>
-                                                    )
-                                                })
-                                            ) : (
-                                                <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 px-2 py-1 rounded-lg shadow-sm">
-                                                    <div className="w-5 h-5 rounded-full bg-indigo-100 flex items-center justify-center text-[10px] font-bold text-indigo-700 shrink-0">
-                                                        {task.assignedTo && userMap[task.assignedTo]?.name ? userMap[task.assignedTo]!.name.charAt(0).toUpperCase() : '?'}
-                                                    </div>
-                                                    <span className="text-xs font-medium text-gray-700 truncate max-w-[120px]">
-                                                        {(task.assignedTo && userMap[task.assignedTo]?.name) || task.assignedTo || "Unassigned"}
-                                                    </span>
-                                                </div>
-                                            )}
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4">
-                                        <div className="flex flex-col gap-3 min-w-[180px]">
-                                            {/* Overall Status & Progress */}
-                                            <div className="flex items-center justify-between">
-                                                <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${getStatusColor(task.status)}`}>
-                                                    {task.status === 'submitted' ? 'Review Needed' : task.status}
-                                                </span>
-                                                {task.modules && task.modules.length > 0 && (
-                                                    <span className="text-[10px] font-bold text-gray-400">
-                                                        {Math.round((task.modules.filter(m => m.status === 'verified').length / task.modules.length) * 100)}%
-                                                    </span>
-                                                )}
-                                            </div>
-
-                                            {/* Detailed Module List */}
-                                            {task.modules && task.modules.length > 0 && (
-                                                <div className="flex flex-col gap-1.5 border-t border-gray-100 pt-2 max-h-[120px] overflow-y-auto pr-1 custom-scrollbar">
-                                                    {task.modules.map((m, idx) => {
-                                                        const assignee = userMap[m.assignedTo];
-                                                        return (
-                                                            <div key={idx} className="flex items-start gap-2 group/module">
-                                                                {/* Status Indicator */}
-                                                                <div className={`mt-0.5 w-2 h-2 rounded-full shrink-0 ${m.status === 'verified' ? 'bg-green-500 shadow-[0_0_4px_rgba(34,197,94,0.4)]' : m.status === 'submitted' ? 'bg-yellow-400 shadow-[0_0_2px_rgba(250,204,21,0.4)]' : 'bg-gray-200'}`} />
-
-                                                                {/* Module Info */}
-                                                                <div className="flex flex-col gap-1 min-w-0 flex-1">
-                                                                    <span
-                                                                        className={`text-[11px] font-medium leading-tight ${m.status === 'verified' ? 'text-gray-400' : 'text-gray-700'}`}
-                                                                    >
-                                                                        {m.title}
-                                                                    </span>
-                                                                    <span className="text-[9px] text-gray-400">
-                                                                        {assignee?.name || "Unknown"}
-                                                                    </span>
-                                                                    {m.description && (
-                                                                        <div className="text-[10px] text-gray-500">
-                                                                            <ExpandableText text={m.description} previewWords={3} modalTitle={`Module: ${m.title}`} />
-                                                                        </div>
-                                                                    )}
-                                                                </div>
-                                                            </div>
-                                                        );
-                                                    })}
-                                                </div>
-                                            )}
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 text-right">
-                                        <div className="flex items-center justify-end gap-2 relative">
-                                            {/* Review Action - Only for active tasks needing review */}
-                                            {!completedOnly && (task.status === 'submitted' || task.modules?.some(m => m.status === 'submitted')) && (
-                                                <button
-                                                    onClick={() => handleOpenVerification(task)}
-                                                    className="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 text-xs px-3 py-1.5 rounded-lg font-bold shadow-sm transition-all flex items-center gap-1"
-                                                >
-                                                    Review
-                                                    {task.modules?.some(m => m.status === 'submitted') && (
-                                                        <span className="bg-white/50 px-1.5 rounded-full text-[10px]">
-                                                            {task.modules.filter(m => m.status === 'submitted').length}
-                                                        </span>
-                                                    )}
-                                                </button>
-                                            )}
-
-                                            {/* 3-Dot Menu - Always Visible */}
-                                            <div className="relative inline-block text-left">
-                                                <button
-                                                    onClick={(e) => toggleMenu(task.id!, e)}
-                                                    className={`text-gray-400 hover:text-gray-600 p-2 rounded-lg hover:bg-gray-100 transition-colors active:scale-95 ${openMenuId === task.id ? 'bg-gray-100 text-gray-600 shadow-inner' : ''}`}
-                                                >
-                                                    <MoreHorizontal className="w-5 h-5" />
-                                                </button>
-                                                {openMenuId === task.id && (
-                                                    <div className="absolute right-0 mt-2 w-36 bg-white rounded-xl shadow-lg border border-gray-100 z-50 animate-in fade-in slide-in-from-top-1 duration-100">
-                                                        <div className="py-1">
-                                                            {!(task.status === 'completed' || task.status === 'verified') && (
-                                                                <button
-                                                                    onClick={(e) => {
-                                                                        e.stopPropagation();
-                                                                        setEditTaskData(task);
-                                                                        setOpenMenuId(null);
-                                                                    }}
-                                                                    className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2"
-                                                                >
-                                                                    <Disc className="w-4 h-4" />
-                                                                    Edit
-                                                                </button>
-                                                            )}
-                                                            <button
-                                                                onClick={async (e) => {
-                                                                    e.stopPropagation();
-                                                                    if (confirm("Delete this task?")) {
-                                                                        await deleteTask(task.id!);
-                                                                        setOpenMenuId(null);
-                                                                    }
-                                                                }}
-                                                                className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2"
-                                                            >
-                                                                <Trash2 className="w-4 h-4" />
-                                                                Delete
-                                                            </button>
-                                                        </div>
-                                                    </div>
-                                                )}
-                                            </div>
-                                        </div>
+                        <AnimatePresence mode="popLayout">
+                            {tasks.length === 0 ? (
+                                <tr>
+                                    <td colSpan={5} className="px-6 py-8 text-center text-gray-500">
+                                        No tasks found. Create one to get started.
                                     </td>
                                 </tr>
-                            ))
-                        )}
+                            ) : (
+                                tasks.map((task) => (
+                                    <motion.tr
+                                        key={task.id}
+                                        layout
+                                        initial={{ opacity: 0, x: -10 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        exit={{ opacity: 0, x: 10 }}
+                                        transition={{ duration: 0.2 }}
+                                        className="hover:bg-gray-50/50 transition-colors group"
+                                    >
+                                        <td className="px-6 py-4 font-medium text-gray-800">
+                                            <div className="flex items-center gap-3">
+                                                <div className="w-8 h-8 rounded-lg bg-gray-100 flex items-center justify-center text-gray-500 group-hover:bg-white group-hover:text-iqm-primary transition-colors">
+                                                    <Disc className="w-4 h-4" />
+                                                </div>
+                                                <div>
+                                                    <div className="font-semibold">{task.title}</div>
+                                                    <div className="text-xs text-gray-400 font-normal mt-0.5">
+                                                        <ExpandableText text={task.description} previewWords={4} modalTitle={`Task: ${task.title}`} />
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <span className={`px-2 py-1 rounded-md text-xs font-medium capitalize 
+                                            ${task.priority === 'high' ? 'bg-red-50 text-red-600' :
+                                                    task.priority === 'medium' ? 'bg-orange-50 text-orange-600' :
+                                                        'bg-blue-50 text-blue-600'}`}>
+                                                {task.priority}
+                                            </span>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex flex-wrap gap-2 max-w-[250px]">
+                                                {task.modules && task.modules.length > 0 ? (
+                                                    Array.from(new Set(task.modules.map(m => m.assignedTo).filter(Boolean))).map((uid, i) => {
+                                                        const emp = userMap[uid];
+                                                        return (
+                                                            <div key={i} className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 px-2 py-1 rounded-lg shadow-sm">
+                                                                <div className="w-5 h-5 rounded-full bg-indigo-100 flex items-center justify-center text-[10px] font-bold text-indigo-700 shrink-0">
+                                                                    {emp?.name ? emp.name.charAt(0).toUpperCase() : (uid.charAt(0).toUpperCase() || '?')}
+                                                                </div>
+                                                                <span className="text-xs font-medium text-gray-700 truncate max-w-[100px]" title={emp?.name || uid}>
+                                                                    {emp?.name || "Unknown"}
+                                                                </span>
+                                                            </div>
+                                                        )
+                                                    })
+                                                ) : (
+                                                    <div className="flex items-center gap-1.5 bg-gray-50 border border-gray-200 px-2 py-1 rounded-lg shadow-sm">
+                                                        <div className="w-5 h-5 rounded-full bg-indigo-100 flex items-center justify-center text-[10px] font-bold text-indigo-700 shrink-0">
+                                                            {task.assignedTo && userMap[task.assignedTo]?.name ? userMap[task.assignedTo]!.name.charAt(0).toUpperCase() : '?'}
+                                                        </div>
+                                                        <span className="text-xs font-medium text-gray-700 truncate max-w-[120px]">
+                                                            {(task.assignedTo && userMap[task.assignedTo]?.name) || task.assignedTo || "Unassigned"}
+                                                        </span>
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4">
+                                            <div className="flex flex-col gap-3 min-w-[180px]">
+                                                {/* Overall Status & Progress */}
+                                                <div className="flex items-center justify-between">
+                                                    <span className={`px-2 py-0.5 rounded-md text-[10px] font-bold uppercase tracking-wider ${getStatusColor(task.status)}`}>
+                                                        {task.status === 'submitted' ? 'Review Needed' : task.status}
+                                                    </span>
+                                                    {task.modules && task.modules.length > 0 && (
+                                                        <span className="text-[10px] font-bold text-gray-400">
+                                                            {Math.round((task.modules.filter(m => m.status === 'verified').length / task.modules.length) * 100)}%
+                                                        </span>
+                                                    )}
+                                                </div>
+
+                                                {/* Detailed Module List */}
+                                                {task.modules && task.modules.length > 0 && (
+                                                    <div className="flex flex-col gap-1.5 border-t border-gray-100 pt-2 max-h-[120px] overflow-y-auto pr-1 custom-scrollbar">
+                                                        {task.modules.map((m, idx) => {
+                                                            const assignee = userMap[m.assignedTo];
+                                                            return (
+                                                                <div key={idx} className="flex items-start gap-2 group/module">
+                                                                    {/* Status Indicator */}
+                                                                    <div className={`mt-0.5 w-2 h-2 rounded-full shrink-0 ${m.status === 'verified' ? 'bg-green-500 shadow-[0_0_4px_rgba(34,197,94,0.4)]' : m.status === 'submitted' ? 'bg-yellow-400 shadow-[0_0_2px_rgba(250,204,21,0.4)]' : 'bg-gray-200'}`} />
+
+                                                                    {/* Module Info */}
+                                                                    <div className="flex flex-col gap-1 min-w-0 flex-1">
+                                                                        <span
+                                                                            className={`text-[11px] font-medium leading-tight ${m.status === 'verified' ? 'text-gray-400' : 'text-gray-700'}`}
+                                                                        >
+                                                                            {m.title}
+                                                                        </span>
+                                                                        <span className="text-[9px] text-gray-400">
+                                                                            {assignee?.name || "Unknown"}
+                                                                        </span>
+                                                                        {m.description && (
+                                                                            <div className="text-[10px] text-gray-500">
+                                                                                <ExpandableText text={m.description} previewWords={3} modalTitle={`Module: ${m.title}`} />
+                                                                            </div>
+                                                                        )}
+                                                                    </div>
+                                                                </div>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                )}
+                                            </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-right">
+                                            <div className="flex items-center justify-end gap-2 relative">
+                                                {/* Review Action - Only for active tasks needing review */}
+                                                {!completedOnly && (task.status === 'submitted' || task.modules?.some(m => m.status === 'submitted')) && (
+                                                    <button
+                                                        onClick={() => handleOpenVerification(task)}
+                                                        className="bg-yellow-100 hover:bg-yellow-200 text-yellow-800 text-xs px-3 py-1.5 rounded-lg font-bold shadow-sm transition-all flex items-center gap-1"
+                                                    >
+                                                        Review
+                                                        {task.modules?.some(m => m.status === 'submitted') && (
+                                                            <span className="bg-white/50 px-1.5 rounded-full text-[10px]">
+                                                                {task.modules.filter(m => m.status === 'submitted').length}
+                                                            </span>
+                                                        )}
+                                                    </button>
+                                                )}
+
+                                                {/* 3-Dot Menu - Always Visible */}
+                                                <div className="relative inline-block text-left">
+                                                    <button
+                                                        onClick={(e) => toggleMenu(task.id!, e)}
+                                                        className={`text-gray-400 hover:text-gray-600 p-2 rounded-lg hover:bg-gray-100 transition-colors active:scale-95 ${openMenuId === task.id ? 'bg-gray-100 text-gray-600 shadow-inner' : ''}`}
+                                                    >
+                                                        <MoreHorizontal className="w-5 h-5" />
+                                                    </button>
+                                                    <AnimatePresence>
+                                                        {openMenuId === task.id && (
+                                                            <motion.div
+                                                                initial={{ opacity: 0, y: -5, height: 0 }}
+                                                                animate={{ opacity: 1, y: 0, height: 'auto' }}
+                                                                exit={{ opacity: 0, y: -5, height: 0 }}
+                                                                transition={{ duration: 0.2 }}
+                                                                className="absolute right-0 mt-2 w-36 bg-white rounded-xl shadow-lg border border-gray-100 z-50 overflow-hidden"
+                                                            >
+                                                                <div className="py-1">
+                                                                    {!(task.status === 'completed' || task.status === 'verified') && (
+                                                                        <button
+                                                                            onClick={(e) => {
+                                                                                e.stopPropagation();
+                                                                                setEditTaskData(task);
+                                                                                setOpenMenuId(null);
+                                                                            }}
+                                                                            className="w-full text-left px-4 py-2 text-sm text-gray-700 hover:bg-gray-50 flex items-center gap-2 transition-colors"
+                                                                        >
+                                                                            <Disc className="w-4 h-4" />
+                                                                            Edit
+                                                                        </button>
+                                                                    )}
+                                                                    <button
+                                                                        onClick={async (e) => {
+                                                                            e.stopPropagation();
+                                                                            if (confirm("Delete this task?")) {
+                                                                                await deleteTask(task.id!);
+                                                                                setOpenMenuId(null);
+                                                                            }
+                                                                        }}
+                                                                        className="w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-red-50 flex items-center gap-2 transition-colors"
+                                                                    >
+                                                                        <Trash2 className="w-4 h-4" />
+                                                                        Delete
+                                                                    </button>
+                                                                </div>
+                                                            </motion.div>
+                                                        )}
+                                                    </AnimatePresence>
+                                                </div>
+                                            </div>
+                                        </td>
+                                    </motion.tr>
+                                ))
+                            )}
+                        </AnimatePresence>
                     </tbody>
                 </table>
             </div>
