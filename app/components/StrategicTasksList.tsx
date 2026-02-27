@@ -6,6 +6,7 @@ import { useAuth } from "@/app/context/AuthContext";
 import { ExpandableText } from "./ExpandableText";
 import { Copy, Trash2, Calendar, CheckCircle2, Clock, MoreHorizontal, Pencil, X } from "lucide-react";
 import { EditTaskModal } from "./EditTaskModal";
+import { motion, AnimatePresence } from "framer-motion";
 
 interface StrategicTasksListProps {
     targetRole?: 'lead' | 'executive';
@@ -123,137 +124,155 @@ export function StrategicTasksList({ targetRole = 'lead' }: StrategicTasksListPr
                         </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
-                        {tasks.map(task => {
-                            const isCompleted = task.status === 'completed';
+                        <AnimatePresence mode="popLayout">
+                            {tasks.map(task => {
+                                const isCompleted = task.status === 'completed';
 
-                            // Determine display date
-                            let dateLabel = "N/A";
-                            if (isCompleted && task.completedAt) {
-                                dateLabel = (task.completedAt as any).toDate ? (task.completedAt as any).toDate().toLocaleDateString() : new Date((task.completedAt as any).seconds * 1000).toLocaleDateString();
-                            } else if (task.dueDate) {
-                                dateLabel = (task.dueDate as any).toDate ? (task.dueDate as any).toDate().toLocaleDateString() : new Date((task.dueDate as any)).toLocaleDateString();
-                            }
+                                // Determine display date
+                                let dateLabel = "N/A";
+                                if (isCompleted && task.completedAt) {
+                                    dateLabel = (task.completedAt as any).toDate ? (task.completedAt as any).toDate().toLocaleDateString() : new Date((task.completedAt as any).seconds * 1000).toLocaleDateString();
+                                } else if (task.dueDate) {
+                                    dateLabel = (task.dueDate as any).toDate ? (task.dueDate as any).toDate().toLocaleDateString() : new Date((task.dueDate as any)).toLocaleDateString();
+                                }
 
-                            // Determine status description for Executives
-                            let statusText = "Pending";
-                            let statusColor = "bg-yellow-100 text-yellow-700 border-yellow-200";
+                                // Determine status description for Executives
+                                let statusText = "Pending";
+                                let statusColor = "bg-yellow-100 text-yellow-700 border-yellow-200";
 
-                            if (isCompleted) {
-                                statusText = "Completed";
-                                statusColor = "bg-green-100 text-green-700 border-green-200";
-                            } else if (task.status === 'under_review') {
-                                statusText = "Under Review";
-                                statusColor = "bg-yellow-100 text-yellow-700 border-yellow-200";
-                            } else if (task.status === 'rejected') {
-                                statusText = "Rejected";
-                                statusColor = "bg-red-50 text-red-700 border-red-200";
-                            } else if (task.taskType === 'executive') {
-                                // Logic 1: Check dynamic array
-                                if (task.assignedExecutives && task.assignedExecutives.length > 0) {
-                                    const allExecs = task.assignedExecutives;
-                                    const completedCount = allExecs.filter(e => e.completed).length;
+                                if (isCompleted) {
+                                    statusText = "Completed";
+                                    statusColor = "bg-green-100 text-green-700 border-green-200";
+                                } else if (task.status === 'under_review') {
+                                    statusText = "Under Review";
+                                    statusColor = "bg-yellow-100 text-yellow-700 border-yellow-200";
+                                } else if (task.status === 'rejected') {
+                                    statusText = "Rejected";
+                                    statusColor = "bg-red-50 text-red-700 border-red-200";
+                                } else if (task.taskType === 'executive') {
+                                    // Logic 1: Check dynamic array
+                                    if (task.assignedExecutives && task.assignedExecutives.length > 0) {
+                                        const allExecs = task.assignedExecutives;
+                                        const completedCount = allExecs.filter(e => e.completed).length;
 
-                                    if (completedCount === allExecs.length) {
-                                        statusText = "Completed"; // Should be covered by isCompleted, but safety fallback
-                                        statusColor = "bg-green-100 text-green-700 border-green-200";
-                                    } else if (completedCount > 0) {
-                                        // Generate granular status string
-                                        const details = allExecs.map(e => `${e.role?.toUpperCase() || 'EXEC'}: ${e.completed ? '✓' : '✗'}`).join(", ");
-                                        statusText = `Partial (${details})`;
-                                        statusColor = "bg-blue-50 text-blue-700 border-blue-100";
+                                        if (completedCount === allExecs.length) {
+                                            statusText = "Completed"; // Should be covered by isCompleted, but safety fallback
+                                            statusColor = "bg-green-100 text-green-700 border-green-200";
+                                        } else if (completedCount > 0) {
+                                            // Generate granular status string
+                                            const details = allExecs.map(e => `${e.role?.toUpperCase() || 'EXEC'}: ${e.completed ? '✓' : '✗'}`).join(", ");
+                                            statusText = `Partial (${details})`;
+                                            statusColor = "bg-blue-50 text-blue-700 border-blue-100";
+                                        }
+                                    }
+                                    // Logic 2: Legacy Fallback
+                                    else {
+                                        const ccoDone = task.executiveCompletion?.ccoCompleted;
+                                        const cooDone = task.executiveCompletion?.cooCompleted;
+                                        if (ccoDone || cooDone) {
+                                            statusText = `Partial (CCO: ${ccoDone ? '✓' : '✗'}, COO: ${cooDone ? '✓' : '✗'})`;
+                                            statusColor = "bg-blue-50 text-blue-700 border-blue-100";
+                                        }
                                     }
                                 }
-                                // Logic 2: Legacy Fallback
-                                else {
-                                    const ccoDone = task.executiveCompletion?.ccoCompleted;
-                                    const cooDone = task.executiveCompletion?.cooCompleted;
-                                    if (ccoDone || cooDone) {
-                                        statusText = `Partial (CCO: ${ccoDone ? '✓' : '✗'}, COO: ${cooDone ? '✓' : '✗'})`;
-                                        statusColor = "bg-blue-50 text-blue-700 border-blue-100";
-                                    }
-                                }
-                            }
 
-                            return (
-                                <tr key={task.id} className="hover:bg-gray-50/50 transition-colors group">
-                                    <td className="px-6 py-4 font-bold text-gray-800 align-top">
-                                        {task.title}
-                                    </td>
-                                    <td className="px-6 py-4 text-gray-600 text-sm align-top">
-                                        <ExpandableText text={task.description} previewWords={10} modalTitle={task.title} />
-                                    </td>
-                                    <td className="px-6 py-4 align-top">
-                                        <div className="flex items-center gap-2">
-                                            <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center">
-                                                {getAssigneeName(task.assignedTo!).charAt(0)}
+                                return (
+                                    <motion.tr
+                                        key={task.id}
+                                        layout
+                                        initial={{ opacity: 0, x: -10 }}
+                                        animate={{ opacity: 1, x: 0 }}
+                                        exit={{ opacity: 0, x: 10 }}
+                                        transition={{ duration: 0.2 }}
+                                        className="hover:bg-gray-50/50 transition-colors group"
+                                    >
+                                        <td className="px-6 py-4 font-bold text-gray-800 align-top">
+                                            {task.title}
+                                        </td>
+                                        <td className="px-6 py-4 text-gray-600 text-sm align-top">
+                                            <ExpandableText text={task.description} previewWords={10} modalTitle={task.title} />
+                                        </td>
+                                        <td className="px-6 py-4 align-top">
+                                            <div className="flex items-center gap-2">
+                                                <div className="w-8 h-8 rounded-full bg-indigo-100 text-indigo-700 font-bold text-xs flex items-center justify-center">
+                                                    {getAssigneeName(task.assignedTo!).charAt(0)}
+                                                </div>
+                                                <div className="flex flex-col">
+                                                    <span className="text-sm font-medium text-gray-700">{getAssigneeName(task.assignedTo!)}</span>
+                                                    <span className="text-xs text-gray-400">{task.department || usersMap[task.assignedTo!]?.role.toUpperCase()}</span>
+                                                </div>
                                             </div>
-                                            <div className="flex flex-col">
-                                                <span className="text-sm font-medium text-gray-700">{getAssigneeName(task.assignedTo!)}</span>
-                                                <span className="text-xs text-gray-400">{task.department || usersMap[task.assignedTo!]?.role.toUpperCase()}</span>
+                                        </td>
+                                        <td className="px-6 py-4 text-right align-top">
+                                            <div className="flex flex-col items-end gap-1">
+                                                <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${statusColor}`}>
+                                                    {isCompleted ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Clock className="w-3.5 h-3.5" />}
+                                                    {statusText}
+                                                </span>
+                                                <span className="text-xs font-mono text-gray-400 mt-1">
+                                                    {isCompleted ? "Completed: " : "Due: "}{dateLabel}
+                                                </span>
                                             </div>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 text-right align-top">
-                                        <div className="flex flex-col items-end gap-1">
-                                            <span className={`flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold border ${statusColor}`}>
-                                                {isCompleted ? <CheckCircle2 className="w-3.5 h-3.5" /> : <Clock className="w-3.5 h-3.5" />}
-                                                {statusText}
-                                            </span>
-                                            <span className="text-xs font-mono text-gray-400 mt-1">
-                                                {isCompleted ? "Completed: " : "Due: "}{dateLabel}
-                                            </span>
-                                        </div>
-                                    </td>
-                                    <td className="px-6 py-4 text-right relative align-top">
-                                        <div className="flex items-center justify-end gap-2 relative">
-                                            {(task.status === 'under_review' || task.status === 'rejected') && (
-                                                <button
-                                                    onClick={() => handleOpenVerification(task)}
-                                                    className={`${task.status === 'rejected' ? 'bg-red-100 hover:bg-red-200 text-red-800' : 'bg-yellow-100 hover:bg-yellow-200 text-yellow-800'} text-xs px-3 py-1.5 rounded-lg font-bold shadow-sm transition-all flex items-center gap-1`}
-                                                >
-                                                    {task.status === 'rejected' ? 'View' : 'Review'}
-                                                </button>
-                                            )}
-
-                                            <div className="relative inline-block text-left">
-                                                <button
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        setOpenMenuId(openMenuId === task.id ? null : task.id!);
-                                                    }}
-                                                    className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors active:scale-95"
-                                                >
-                                                    <MoreHorizontal className="w-5 h-5" />
-                                                </button>
-
-                                                {openMenuId === task.id && (
-                                                    <div className="absolute right-8 top-12 w-40 bg-white rounded-xl shadow-xl border border-gray-100 z-50 animate-in fade-in zoom-in-95 duration-200 overflow-hidden">
-                                                        {!isCompleted && (
-                                                            <button
-                                                                onClick={(e) => {
-                                                                    e.stopPropagation();
-                                                                    setEditTaskData(task);
-                                                                    setOpenMenuId(null);
-                                                                }}
-                                                                className="w-full text-left px-4 py-3 text-gray-700 hover:bg-gray-50 text-sm font-medium flex items-center gap-2 transition-colors border-b border-gray-50"
-                                                            >
-                                                                <Pencil className="w-4 h-4" /> Edit Task
-                                                            </button>
-                                                        )}
-                                                        <button
-                                                            onClick={(e) => { e.stopPropagation(); handleDelete(task.id!); }}
-                                                            className="w-full text-left px-4 py-3 text-red-600 hover:bg-red-50 text-sm font-medium flex items-center gap-2 transition-colors"
-                                                        >
-                                                            <Trash2 className="w-4 h-4" /> Delete Task
-                                                        </button>
-                                                    </div>
+                                        </td>
+                                        <td className="px-6 py-4 text-right relative align-top">
+                                            <div className="flex items-center justify-end gap-2 relative">
+                                                {(task.status === 'under_review' || task.status === 'rejected') && (
+                                                    <button
+                                                        onClick={() => handleOpenVerification(task)}
+                                                        className={`${task.status === 'rejected' ? 'bg-red-100 hover:bg-red-200 text-red-800' : 'bg-yellow-100 hover:bg-yellow-200 text-yellow-800'} text-xs px-3 py-1.5 rounded-lg font-bold shadow-sm transition-all flex items-center gap-1`}
+                                                    >
+                                                        {task.status === 'rejected' ? 'View' : 'Review'}
+                                                    </button>
                                                 )}
+
+                                                <div className="relative inline-block text-left">
+                                                    <button
+                                                        onClick={(e) => {
+                                                            e.stopPropagation();
+                                                            setOpenMenuId(openMenuId === task.id ? null : task.id!);
+                                                        }}
+                                                        className="p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg transition-colors active:scale-95"
+                                                    >
+                                                        <MoreHorizontal className="w-5 h-5" />
+                                                    </button>
+
+                                                    <AnimatePresence>
+                                                        {openMenuId === task.id && (
+                                                            <motion.div
+                                                                initial={{ opacity: 0, y: -5, height: 0 }}
+                                                                animate={{ opacity: 1, y: 0, height: 'auto' }}
+                                                                exit={{ opacity: 0, y: -5, height: 0 }}
+                                                                transition={{ duration: 0.2 }}
+                                                                className="absolute right-8 top-12 w-40 bg-white rounded-xl shadow-xl border border-gray-100 z-50 overflow-hidden"
+                                                            >
+                                                                {!isCompleted && (
+                                                                    <button
+                                                                        onClick={(e) => {
+                                                                            e.stopPropagation();
+                                                                            setEditTaskData(task);
+                                                                            setOpenMenuId(null);
+                                                                        }}
+                                                                        className="w-full text-left px-4 py-3 text-gray-700 hover:bg-gray-50 text-sm font-medium flex items-center gap-2 transition-colors border-b border-gray-50"
+                                                                    >
+                                                                        <Pencil className="w-4 h-4" /> Edit Task
+                                                                    </button>
+                                                                )}
+                                                                <button
+                                                                    onClick={(e) => { e.stopPropagation(); handleDelete(task.id!); }}
+                                                                    className="w-full text-left px-4 py-3 text-red-600 hover:bg-red-50 text-sm font-medium flex items-center gap-2 transition-colors"
+                                                                >
+                                                                    <Trash2 className="w-4 h-4" /> Delete Task
+                                                                </button>
+                                                            </motion.div>
+                                                        )}
+                                                    </AnimatePresence>
+                                                </div>
                                             </div>
-                                        </div>
-                                    </td>
-                                </tr>
-                            );
-                        })}
+                                        </td>
+                                    </motion.tr>
+                                );
+                            })}
+                        </AnimatePresence>
                     </tbody>
                 </table>
             </div>

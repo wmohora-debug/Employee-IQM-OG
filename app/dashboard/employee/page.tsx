@@ -8,6 +8,7 @@ import { CheckSquare, Clock, Layout } from "lucide-react";
 import { useEffect, useState } from "react";
 import { subscribeToEmployeeStats } from "@/lib/db";
 import { useAuth } from "@/app/context/AuthContext";
+import { StaggerGrid } from "@/app/components/StaggerGrid";
 
 export default function EmployeeDashboard() {
     const { user } = useAuth();
@@ -37,7 +38,7 @@ export default function EmployeeDashboard() {
 
             <main className="p-4 md:ml-64 md:p-8 space-y-8">
                 {/* Stats Row */}
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <StaggerGrid className="grid grid-cols-1 md:grid-cols-3 gap-6">
                     <StatCard
                         label="Assigned Tasks"
                         value={stats.assignedTasks}
@@ -56,7 +57,7 @@ export default function EmployeeDashboard() {
                         iconImage="/icons/emp-completed.png"
                         color="bg-cyan-500"
                     />
-                </div>
+                </StaggerGrid>
 
                 {/* My Tasks Section */}
                 <section>

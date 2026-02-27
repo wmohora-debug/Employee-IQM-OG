@@ -10,6 +10,7 @@ import { Target, Clock, CheckCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { subscribeToLeadStats } from "@/lib/db";
 import { useAuth } from "@/app/context/AuthContext";
+import { StaggerGrid } from "@/app/components/StaggerGrid";
 
 export default function LeadDashboard() {
     const { user } = useAuth();
@@ -41,7 +42,7 @@ export default function LeadDashboard() {
 
             <main className="p-4 md:ml-64 md:p-8 space-y-8">
                 {/* Stats Row */}
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                <StaggerGrid className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                     <StatCard
                         label={`Employees (${deptName})`}
                         value={stats.totalEmployees}
@@ -66,7 +67,7 @@ export default function LeadDashboard() {
                         iconImage="/icons/kpi-completed.png"
                         color="bg-emerald-500"
                     />
-                </div>
+                </StaggerGrid>
 
                 {/* Task Management Section */}
                 <section className="space-y-8">
