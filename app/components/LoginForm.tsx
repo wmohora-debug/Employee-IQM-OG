@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { Lock, Mail, ArrowRight, Loader2, AlertCircle, Eye, EyeOff } from "lucide-react";
+import { Terminal, Shield, ArrowRight, Loader2, AlertCircle, Eye, EyeOff } from "lucide-react";
 import { signInWithEmailAndPassword } from "firebase/auth";
 import { auth } from "@/lib/firebase";
 
@@ -72,16 +72,16 @@ export function LoginForm() {
                 <p className="text-sm text-gray-400 mt-2">Initialize secure connection to workspace</p>
             </div>
 
-            {/* Main Card (Glassmorphism & Sync Glow) */}
-            <div className="relative rounded-2xl p-6 md:p-8 overflow-hidden group">
-                {/* 1. Underlying Glass Layer */}
-                <div className="absolute inset-0 bg-[#111928]/75 backdrop-blur-lg border border-white/10 shadow-[0_8px_32px_rgba(0,0,0,0.5)] rounded-2xl z-0" />
+            {/* Main Card (Extreme Glassmorphism) */}
+            <div className="relative rounded-2xl p-6 md:p-8 overflow-hidden group border border-white/20 shadow-[0_0_40px_rgba(139,92,246,0.2)]">
+                {/* 1. Underlying Extreme Glass Layer */}
+                <div className="absolute inset-0 bg-[#0a0a0a]/60 backdrop-blur-md rounded-2xl z-0" />
 
                 {/* 2. Synced Department Pulse Border Glow */}
-                <div className="absolute inset-0 rounded-2xl pointer-events-none animate-sync-card-glow z-0" />
+                <div className="absolute inset-0 rounded-2xl pointer-events-none shadow-[inset_0_0_20px_rgba(139,92,246,0.3)] z-0" />
 
-                {/* 3. 20s Shimmer Sweep Layer */}
-                <div className="absolute inset-0 pointer-events-none z-0 opacity-5 bg-gradient-to-r from-transparent via-white to-transparent -translate-x-full animate-shimmer-sweep" />
+                {/* 3. Shimmer Sweep Layer */}
+                <div className="absolute inset-0 pointer-events-none z-0 opacity-10 bg-gradient-to-r from-transparent via-purple-400 to-transparent -translate-x-full animate-shimmer-sweep" />
 
                 <div className="relative z-10 w-full">
                     {error && (
@@ -102,13 +102,10 @@ export function LoginForm() {
                                     required
                                     className="relative block w-full px-4 py-3 bg-white/5 border border-white/10 rounded-xl text-white text-sm placeholder-gray-500
                                              focus:outline-none transition-all duration-300 ease-in-out hover:border-white/20 hover:bg-white/10 z-20"
-                                    placeholder="node@network.com"
+                                    placeholder="admin_node"
                                     value={formData.username}
                                     onChange={(e) => setFormData({ ...formData, username: e.target.value })}
                                 />
-                                <div className="absolute z-30 inset-y-0 right-0 pr-3.5 flex items-center pointer-events-none text-gray-400 group-focus-within/input:text-white transition-colors">
-                                    <Mail className="h-4 w-4" />
-                                </div>
                             </div>
                         </div>
 
